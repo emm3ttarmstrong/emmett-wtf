@@ -5,9 +5,9 @@ import { NextResponse } from "next/server";
 import { isOwner, SESSION_COOKIE } from "@/lib/auth";
 import { entries } from "@/lib/entries";
 
-const ACTIONS = ["hide", "unhide", "delete"] as const;
+const ACTIONS = ["hide", "unhide", "publish", "unpublish", "delete"] as const;
 
-// The gallery's card controls. An edit is not applied here: it is written to a queue folder that Omarchy watches,
+// The gallery's card controls: hide, make public or private, delete. An edit is not applied here: it is written to a queue folder that Omarchy watches,
 // and `wtf-app edits` turns it into a commit on main, which then deploys. See server/README.md.
 async function owner() {
   const jar = await cookies();
@@ -16,7 +16,7 @@ async function owner() {
 
 export async function GET() {
   if (!(await owner())) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ entries: Object.fromEntries(entries.map((e) => [e.slug, { hidden: e.hidden }])) });
+  return NextResponse.json({ entries: Object.fromEntries(entries.map((e) => [e.slug, { hidden: e.hidden, public: e.public }])) });
 }
 
 export async function POST(request: Request) {

@@ -20,7 +20,7 @@ Read `skill/emmett-wtf/SKILL.md` for the step-by-step commands. This file is the
 - `sites/<name>.json`: one file per repo that runs on `<name>.emmett.wtf`. Adding the file launches the site.
 - `app/`: the gallery (`/`), the owner's gallery (`/all`, served at `/` by the proxy), `/login`, `/p/[slug]`, and `api/p/<slug>/` for a prototype's API routes.
 - `proxy.ts`: the privacy gate.
-- `app/api/admin/entries/`: the signed-in gallery's Hide and Delete. It queues an edit that Omarchy commits to `main`.
+- `app/api/admin/entries/`: the signed-in gallery's card menu: Hide, Make public and Delete. It queues an edit that Omarchy commits to `main`.
 - `components/ui/`: shadcn components, all installed. `components/control-panel/`: the shared control panel.
 - `scripts/manifest.mjs`: builds `lib/generated/` from the metadata. It runs before dev, build, lint and typecheck, and it fails the build on a prototype with missing files.
 - `scripts/thumbnails.mjs`: thumbnails and Open Graph media.
@@ -30,7 +30,8 @@ Read `skill/emmett-wtf/SKILL.md` for the step-by-step commands. This file is the
 
 - The gallery is public. It shows only entries with `"public": true`.
 - A prototype is private until its metadata says `"public": true`. A private prototype answers 404 to everyone but Emmett, who signs in at `/login`. Never redirect a private URL to the login page, because that confirms the name exists.
-- Make a prototype public only when Emmett asks for that prototype by name.
+- Make a prototype public only when Emmett asks for that prototype by name. He can also do it himself from the card menu in the gallery, which is why every prototype needs its Open Graph media from the start.
+- A private entry's thumbnails and Open Graph files are gated like its page.
 - This repo is public, so a private prototype's code is readable on GitHub. The gate hides the running page, not the source. Keep secrets out of the repo.
 - `"hidden": true` keeps an entry out of the gallery for everyone until Emmett switches on Hidden.
 
@@ -128,12 +129,12 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 - A new prototype, or any visual change, gets fresh thumbnails in the same commit: `pnpm thumbnails <slug>`.
 - A global style change regenerates all of them: `pnpm thumbnails`.
 - Open the captured images and look at them before committing. A stale thumbnail is worse than none.
-- A public prototype also gets `public/og/<slug>.png` and `.mp4` from the same command. The video needs `ffmpeg`.
+- The same command writes `public/og/<slug>.png` and `.mp4` for every prototype, public or not. The video needs `ffmpeg`.
 - If the machine has no browser for Playwright, commit without thumbnails and say so. The gallery shows "No preview yet".
 
 ## Workflow
 
-1. Run `git pull` before starting. Emmett hides and deletes entries from the gallery, and each of those is a commit on `main` by "emmett.wtf gallery".
+1. Run `git pull` before starting. Emmett hides, publishes and deletes entries from the gallery, and each of those is a commit on `main` by "emmett.wtf gallery".
 2. Run `pnpm check` (lint, type-check and a production build) before every push. All three must pass.
 3. Commit to `main` and push. There are no preview deployments and no pull requests here: Omarchy deploys `main` within about two minutes, and a new prototype is private, so `main` is the preview.
 4. A build that fails on the server leaves the previous version running. Check with `curl -s -o /dev/null -w '%{http_code}' https://emmett.wtf/p/<slug>`, which answers 404 for a private prototype when it is deployed and gated, or from the Mac with `ssh armstrong-server-omarchy sudo wtf-app list`.
@@ -146,3 +147,4 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 - The Geist font only applies when `next/font` writes the `--font-sans` variable that `globals.css` reads.
 - Git doesn't track empty folders, so scripts must not assume `sites/` or `public/og/` exists.
 - A Caddy change on Omarchy needs `systemctl restart caddy`. Reload fails because the admin API is off.
+- `pkill -f "next start"` does not stop a production server, because the process renames itself. A server left on a port makes every later test hit an old build. Stop it by port: `lsof -ti :<port> | xargs kill`.

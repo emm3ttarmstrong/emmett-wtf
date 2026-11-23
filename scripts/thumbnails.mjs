@@ -1,4 +1,5 @@
-// Captures gallery thumbnails (light and dark) and, for public prototypes, the Open Graph image and video.
+// Captures gallery thumbnails (light and dark) and, for every prototype, the Open Graph image and video.
+// A private prototype gets them too, so the gallery can make it public later without a browser.
 //
 //   pnpm thumbnails                 every prototype and site
 //   pnpm thumbnails a b             only these slugs
@@ -35,7 +36,7 @@ if (unknown.length) {
 }
 const targets = manifest.filter((e) => {
   if (wanted.length) return wanted.includes(e.slug);
-  if (flags.has("--missing")) return !(e.thumb.light && e.thumb.dark) || (e.kind === "prototype" && e.public && !e.og.image);
+  if (flags.has("--missing")) return !(e.thumb.light && e.thumb.dark) || (e.kind === "prototype" && !e.og.image);
   return true;
 });
 if (!targets.length) {
@@ -43,13 +44,22 @@ if (!targets.length) {
   process.exit(0);
 }
 
-const server = spawn("pnpm", ["exec", "next", "start", "-p", String(PORT)], {
+// Started with node directly, not through pnpm, so that stopping it really stops the server. A server left behind
+// would hold the port and the next run would capture a stale build.
+const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(PORT)], {
   cwd: root,
   stdio: "ignore",
   env: { ...process.env, WTF_OPEN: "1" },
 });
 const stop = () => server.kill();
 process.on("exit", stop);
+
+server.on("exit", (code) => {
+  if (code) {
+    console.error(`thumbnails: the server stopped (is port ${PORT} already in use?)`);
+    process.exit(1);
+  }
+});
 
 const base = `http://localhost:${PORT}`;
 for (let i = 0; ; i++) {
@@ -90,7 +100,7 @@ for (const entry of targets) {
       await page.screenshot({ path: join(root, `public/thumbnails/${entry.slug}-${theme}.png`) });
       await context.close();
     }
-    if (entry.kind === "prototype" && entry.public) {
+    if (entry.kind === "prototype") {
       const size = { width: 1200, height: 630 };
       const videoDir = join(root, ".next/og-video");
       const { context, page } = await open(entry, "dark", { viewport: size, recordVideo: { dir: videoDir, size } });

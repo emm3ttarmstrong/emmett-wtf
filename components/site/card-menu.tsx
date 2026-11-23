@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EllipsisIcon, EyeIcon, EyeOffIcon, Trash2Icon } from "lucide-react";
+import { EllipsisIcon, EyeIcon, EyeOffIcon, GlobeIcon, LockIcon, Trash2Icon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +42,10 @@ export function CardMenu({ entry, onEdit }: { entry: Entry; onEdit: (action: Edi
           <DropdownMenuItem className="min-h-11" onClick={() => onEdit(entry.hidden ? "unhide" : "hide")}>
             {entry.hidden ? <EyeIcon /> : <EyeOffIcon />}
             {entry.hidden ? "Unhide" : "Hide"}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="min-h-11" onClick={() => onEdit(entry.public ? "unpublish" : "publish")}>
+            {entry.public ? <LockIcon /> : <GlobeIcon />}
+            {entry.public ? "Make private" : "Make public"}
           </DropdownMenuItem>
           <DropdownMenuItem className="min-h-11" variant="destructive" onClick={() => setConfirming(true)}>
             <Trash2Icon />

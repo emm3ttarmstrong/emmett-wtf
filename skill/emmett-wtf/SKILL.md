@@ -13,7 +13,7 @@ The hub is the repo `emm3ttarmstrong/emmett-wtf`, on the Mac at `~/projects/pers
 2. Create `prototypes/<slug>/` with `page.tsx` (default-exports the component), `metadata.json` (`"public": false`) and `HOW_IT_WORKS.md`. Copy the shape of `prototypes/spirograph/`.
 3. Follow every rule in `AGENTS.md`.
 4. Run `pnpm dev` and try it at `http://localhost:3000/p/<slug>`, at 375px wide and in both themes.
-5. Run `pnpm thumbnails <slug>` and look at the images in `public/thumbnails/`.
+5. Run `pnpm thumbnails <slug>` and look at the images in `public/thumbnails/` and `public/og/`.
 6. Run `pnpm check`.
 7. Commit to `main` and push.
 8. Finish with the link: `https://emmett.wtf/p/<slug>`. It is private, so Emmett sees it after signing in at `https://emmett.wtf/login`.
@@ -26,11 +26,13 @@ Edit it, set `updatedAt` in its `metadata.json` to now, update `HOW_IT_WORKS.md`
 
 Only when Emmett names the prototype.
 
-1. Set `"public": true` and a new `updatedAt` in its `metadata.json`.
-2. Run `pnpm thumbnails <slug>`, which now also writes `public/og/<slug>.png` and `.mp4`. Check them.
+Emmett can do this himself from the card menu in the gallery. To do it for him:
+
+1. `git pull`, then set `"public": true` and a new `updatedAt` in its `metadata.json`.
+2. Check that `public/og/<slug>.png` and `.mp4` exist and look right. If not, run `pnpm thumbnails <slug>`.
 3. `pnpm check`, commit, push.
 
-To make it private again, set `"public": false` and delete `public/og/<slug>.*`.
+To make it private again, set `"public": false`.
 
 ## Launch a repo on a subdomain
 

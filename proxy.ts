@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isOwner, SESSION_COOKIE } from "@/lib/auth";
-import { findPrototype } from "@/lib/entries";
+import { entries, findPrototype } from "@/lib/entries";
 
 // Private prototypes answer 404 to everyone but the owner, so their names don't leak through a login redirect.
 export async function proxy(request: NextRequest) {
@@ -13,6 +13,13 @@ export async function proxy(request: NextRequest) {
   }
   if (pathname === "/all") return notFound();
 
+  // A private entry's thumbnails and Open Graph media are as private as its page.
+  const media = pathname.match(/^\/(?:thumbnails\/(.+)-(?:light|dark)\.png|og\/(.+)\.(?:png|mp4))$/);
+  if (media) {
+    const entry = entries.find((e) => e.slug === (media[1] ?? media[2]));
+    return entry && (entry.public || owner) ? NextResponse.next() : notFound();
+  }
+
   const slug = pathname.match(/^\/(?:api\/)?p\/([^/]+)/)?.[1];
   if (!slug) return NextResponse.next();
   const prototype = findPrototype(slug);
@@ -21,5 +28,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/all", "/p/:path*", "/api/p/:path*"],
+  matcher: ["/", "/all", "/p/:path*", "/api/p/:path*", "/thumbnails/:path*", "/og/:path*"],
 };

@@ -6,7 +6,7 @@
 #   wtf-app deploy <name> [--force]     deploy if origin/main has moved, or always with --force
 #   wtf-app deploy-all                  what wtf-deploy.timer runs every minute
 #   wtf-app sync                        add every site listed in emmett-wtf's sites/*.json that isn't registered yet
-#   wtf-app edits                       commit the gallery's queued card edits (hide, unhide, delete) and deploy them
+#   wtf-app edits                       commit the gallery's queued card edits (hide, publish, delete) and deploy them
 #   wtf-app list                        every app, its hosts, port and deployed commit
 #   wtf-app logs <name>                 the container's recent logs
 #   wtf-app remove <name>               stop the app and delete its checkout, site and registration
@@ -189,7 +189,7 @@ for request in requests:
     try:
         edit = json.loads(Path(request).read_text())
         slug, action = edit["slug"], edit["action"]
-        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug) or action not in ("hide", "unhide", "delete"):
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug) or action not in ("hide", "unhide", "publish", "unpublish", "delete"):
             raise ValueError("bad request")
         folder, site = repo / "prototypes" / slug, repo / "sites" / f"{slug}.json"
         meta = folder / "metadata.json" if folder.is_dir() else site
@@ -201,7 +201,10 @@ for request in requests:
                 media.unlink()
         else:
             data = json.loads(meta.read_text())
-            data["hidden"] = action == "hide"
+            if action in ("hide", "unhide"):
+                data["hidden"] = action == "hide"
+            else:
+                data["public"] = action == "publish"
             meta.write_text(json.dumps(data, indent=2) + "\n")
         done.append(f"{action} {slug}")
     except Exception as error:

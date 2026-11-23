@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Entry } from "@/lib/entries";
 
-export type EditAction = "hide" | "unhide" | "delete";
+export type EditAction = "hide" | "unhide" | "publish" | "unpublish" | "delete";
 type Pending = Record<string, EditAction>;
-type Live = Record<string, { hidden: boolean }>;
+type State = { hidden: boolean; public: boolean };
+type Live = Record<string, State>;
 
 const KEY = "gallery:pending";
 const POLL_MS = 15000;
 
-function landed(action: EditAction, state: { hidden: boolean } | undefined) {
-  if (action === "delete") return !state;
-  return state ? state.hidden === (action === "hide") : true;
+function landed(action: EditAction, state: State | undefined) {
+  if (!state) return true;
+  if (action === "delete") return false;
+  if (action === "hide" || action === "unhide") return state.hidden === (action === "hide");
+  return state.public === (action === "publish");
 }
 
 function save(pending: Pending) {

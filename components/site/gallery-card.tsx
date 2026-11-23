@@ -6,7 +6,13 @@ import { CardMenu } from "./card-menu";
 import { Thumbnail } from "./thumbnail";
 import type { EditAction } from "./use-pending";
 
-const PENDING_LABEL: Record<EditAction, string> = { hide: "Hiding…", unhide: "Unhiding…", delete: "Deleting…" };
+const PENDING_LABEL: Record<EditAction, string> = {
+  hide: "Hiding…",
+  unhide: "Unhiding…",
+  publish: "Making public…",
+  unpublish: "Making private…",
+  delete: "Deleting…",
+};
 
 type Props = {
   entry: Entry;
