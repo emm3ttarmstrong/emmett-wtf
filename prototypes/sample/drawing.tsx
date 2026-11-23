@@ -1,14 +1,42 @@
+import type { Ref } from "react";
 import { curve, toPath } from "./curve";
 import type { CurveParams } from "./types";
 
-type Props = CurveParams & { layers: number; weight: number; animate: boolean };
+type Props = CurveParams & {
+  layers: number;
+  weight: number;
+  ink: string | null;
+  animate: boolean;
+  backdrop: string | null;
+  backdropOpacity: number;
+  ref?: Ref<SVGSVGElement>;
+};
 
-// Colour comes from `currentColor`, so the drawing follows the theme tokens without reading the theme.
-export function Drawing({ layers, weight, animate, ...params }: Props) {
+// Lines use `currentColor`. With no ink chosen that is the `text-foreground` token, so the drawing follows the theme.
+export function Drawing({ layers, weight, ink, animate, backdrop, backdropOpacity, ref, ...params }: Props) {
   const path = toPath(curve(params));
   return (
-    <svg viewBox="-1.05 -1.05 2.1 2.1" className="size-full text-foreground" role="img" aria-label="Spirograph drawing">
+    <svg
+      ref={ref}
+      viewBox="-1.05 -1.05 2.1 2.1"
+      className="size-full text-foreground"
+      // The ink is a colour the user picked in the control panel, which is data, not a design choice.
+      style={ink ? { color: ink } : undefined}
+      role="img"
+      aria-label="Spirograph drawing"
+    >
       <style>{`@keyframes sample-draw { from { stroke-dashoffset: 1 } to { stroke-dashoffset: 0 } }`}</style>
+      {backdrop && (
+        <image
+          href={backdrop}
+          x={-1.05}
+          y={-1.05}
+          width={2.1}
+          height={2.1}
+          opacity={backdropOpacity}
+          preserveAspectRatio="xMidYMid slice"
+        />
+      )}
       {Array.from({ length: layers }, (_, i) => (
         <path
           key={`${path}-${i}-${animate}`}

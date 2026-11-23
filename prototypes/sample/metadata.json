@@ -1,11 +1,11 @@
 {
   "title": "Sample",
-  "description": "The example every prototype copies: a spirograph with a control panel.",
+  "description": "The example every prototype copies: a spirograph on a pan-and-zoom stage with the full control panel.",
   "tags": [
     "generative"
   ],
   "createdAt": "2026-11-23",
-  "updatedAt": "2026-11-23T21:00:00.000Z",
+  "updatedAt": "2026-11-23T22:00:00.000Z",
   "hidden": false,
   "public": true
 }

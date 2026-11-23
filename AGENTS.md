@@ -76,7 +76,7 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 ### Design system
 
 - Use the shared components in `components/ui/` and the tokens: `bg-background`, `text-foreground`, `bg-card`, `bg-muted`, `text-muted-foreground`, `bg-primary`, `border-border`.
-- Never hardcode a colour: no `bg-black`, no hex values, no inline colour styles. In SVG use `currentColor` with a token class.
+- Never hardcode a colour: no `bg-black`, no hex values, no inline colour styles. In SVG use `currentColor` with a token class. The one exception is a colour the user picked through a `color` control.
 - These components are shadcn's Base UI build, not the Radix one. Read the component's source before using a prop. For example, a Button rendered as a link takes `render={<Link href="…" />}` with `nativeButton={false}`, and there is no `asChild`.
 - Install new dependencies at the repo root with `pnpm add`.
 
@@ -89,7 +89,12 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 ### Control panels
 
 - Anything with tunable parameters gets a control panel, never scattered inputs.
-- Use `@/components/control-panel`: define a schema of `range`, `toggle` and `select` controls in `data.ts`, call `useControls(slug, schema)`, and wrap the subject in `<ControlPanel controls={controls}>`. That gives persistence, Reset and Randomize, a side column from `lg` up and a bottom sheet on phones. `prototypes/sample` is the worked example.
+- Use `@/components/control-panel`: define a schema in `data.ts`, call `useControls(slug, schema)`, and wrap the subject in `<ControlPanel controls={controls}>`. That gives persistence, Reset, Randomize and Copy link, a side column from `lg` up and a bottom sheet on phones. `prototypes/sample` is the worked example and uses every piece below.
+- Control types: `range`, `toggle`, `select`, `color` and `image`. A `section` entry is a heading that groups the controls after it. Group controls into sections once there are more than about five.
+- A `color` control with `default: null` means "follow the theme": the value stays `null` until the user picks a colour, and the prototype falls back to a token such as `currentColor`. Prefer that default so both themes keep working. Applying a picked colour with an inline style is allowed, because it is the user's data.
+- An `image` control holds an uploaded picture as a data URL in memory. It is never saved or put in a shared link.
+- For a visual subject, wrap it in `<Stage>` for pan and zoom. Skip `<Stage>` when the user needs to drag things inside the subject, because the stage takes over dragging.
+- If the subject is an image, give the panel `exportImage` so it shows "Save image". `saveSvgAsPng` and `saveCanvasAsPng` are ready-made.
 - If a prototype needs a control type the library lacks, add it to the library.
 
 ### Mobile first

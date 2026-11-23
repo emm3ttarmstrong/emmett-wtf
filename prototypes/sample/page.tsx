@@ -1,18 +1,20 @@
 "use client";
 
-import { ControlPanel, useControls } from "@/components/control-panel";
+import { useRef } from "react";
+import { ControlPanel, saveSvgAsPng, Stage, useControls } from "@/components/control-panel";
 import { controls as schema, SLUG } from "./data";
 import { Drawing } from "./drawing";
 
 export default function Sample() {
   const controls = useControls(SLUG, schema);
+  const drawing = useRef<SVGSVGElement>(null);
   return (
-    <ControlPanel controls={controls}>
-      <div className="mx-auto flex w-full max-w-2xl flex-1 items-center justify-center p-6">
-        <div className="aspect-square w-full max-h-full">
-          <Drawing {...controls.values} />
+    <ControlPanel controls={controls} exportImage={() => drawing.current && saveSvgAsPng(drawing.current, SLUG)}>
+      <Stage>
+        <div className="aspect-square w-[min(80vmin,40rem)]">
+          <Drawing ref={drawing} {...controls.values} />
         </div>
-      </div>
+      </Stage>
     </ControlPanel>
   );
 }

@@ -26,6 +26,16 @@ The repo must belong to `emm3ttarmstrong`, `armstrong-agency-internal` or `armst
 5. **Check it answers**: `curl -s -o /dev/null -w '%{http_code}' https://<name>.emmett.wtf`. Allow a few minutes for the first build.
 6. **Finish with the link**, `https://<name>.emmett.wtf`. If it came from a hub prototype, ask Emmett whether to delete the prototype now. He can do that from its card menu.
 
+## Toolcraft, for a serious design tool
+
+The hub's control panel borrows its ideas from Toolcraft (`pixel-point/toolcraft`, MIT), Pixel Point's starter kit for a single design app: a pan-and-zoom canvas, a schema-driven panel, layers, a timeline with keyframes, and image, SVG and video export. When a prototype grows into a design tool that needs those, graduate it onto Toolcraft instead of extending the hub's panel:
+
+1. In an empty folder, run `npx --yes @pixel-point/toolcraft create --yes`, then follow the `AGENTS.md` it generates. Toolcraft is a Vite app with its own heavy checks, and by its authors' account a tool takes hours to days, not minutes.
+2. Rebuild the prototype's logic inside it. The pure logic files move over unchanged.
+3. Deploy it as a Docker site through the steps above: a `Dockerfile` that runs the Vite build and serves `dist/`, and a `compose.yml` that publishes it on `127.0.0.1:${PORT}`.
+
+This is untested here: no Toolcraft app has been graduated yet.
+
 ## Details
 
 - DNS needs nothing: `*.emmett.wtf` already points at Omarchy.
