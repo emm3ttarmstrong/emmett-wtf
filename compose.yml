@@ -7,3 +7,8 @@ services:
         required: false
     ports:
       - "127.0.0.1:${PORT:-3000}:3000"
+    environment:
+      EDITS_DIR: /edits
+    volumes:
+      # The gallery's card controls write queued edits here. On Omarchy the hub's .env points it at the folder wtf-app watches.
+      - "${WTF_EDITS_DIR:-./.edits}:/edits"

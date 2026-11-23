@@ -6,6 +6,7 @@
 #   wtf-app deploy <name> [--force]     deploy if origin/main has moved, or always with --force
 #   wtf-app deploy-all                  what wtf-deploy.timer runs every minute
 #   wtf-app sync                        add every site listed in emmett-wtf's sites/*.json that isn't registered yet
+#   wtf-app edits                       commit the gallery's queued card edits (hide, unhide, delete) and deploy them
 #   wtf-app list                        every app, its hosts, port and deployed commit
 #   wtf-app logs <name>                 the container's recent logs
 #   wtf-app remove <name>               stop the app and delete its checkout, site and registration
@@ -21,6 +22,8 @@ SERVICES=$ROOT/home/emmett/services
 CADDY_SITES=$ROOT/etc/caddy/sites
 OWNERS=${WTF_OWNERS:-emm3ttarmstrong armstrong-agency-internal armstrong-agency-shared}
 HUB_APP=emmett-wtf
+EDITS=$STATE/hub-edits                         # the hub's container writes queued card edits here
+DEPLOY_KEY=$ROOT/home/emmett/.ssh/emmett-wtf-deploy  # write access to the hub repo only
 FIRST_PORT=4100
 GIT=(sudo -u emmett env GIT_TERMINAL_PROMPT=0 git)
 
@@ -167,6 +170,62 @@ PY
   done
 }
 
+# The gallery's card controls queue one JSON file per edit. Each run applies them all to a fresh checkout of main as one
+# commit, pushes it with the hub's deploy key, and deploys. A request that can't be applied or pushed moves to failed/.
+cmd_edits() {
+  local dir=$SERVICES/$HUB_APP files=("$EDITS"/*.json) message
+  [[ -e ${files[0]} ]] || return 0
+  load "$HUB_APP"
+  install -d -m 755 "$EDITS/failed"
+  "${GIT[@]}" -C "$dir" fetch --quiet origin main
+  "${GIT[@]}" -C "$dir" checkout --quiet --force -B main origin/main
+  if message=$(sudo -u emmett python3 - "$dir" "${files[@]}" <<'PY'
+import json, re, shutil, sys
+from pathlib import Path
+
+repo, requests = Path(sys.argv[1]), sys.argv[2:]
+done = []
+for request in requests:
+    try:
+        edit = json.loads(Path(request).read_text())
+        slug, action = edit["slug"], edit["action"]
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug) or action not in ("hide", "unhide", "delete"):
+            raise ValueError("bad request")
+        folder, site = repo / "prototypes" / slug, repo / "sites" / f"{slug}.json"
+        meta = folder / "metadata.json" if folder.is_dir() else site
+        if not meta.is_file():
+            continue  # already deleted
+        if action == "delete":
+            shutil.rmtree(folder) if folder.is_dir() else site.unlink()
+            for media in [*repo.glob(f"public/thumbnails/{slug}-*.png"), *repo.glob(f"public/og/{slug}.*")]:
+                media.unlink()
+        else:
+            data = json.loads(meta.read_text())
+            data["hidden"] = action == "hide"
+            meta.write_text(json.dumps(data, indent=2) + "\n")
+        done.append(f"{action} {slug}")
+    except Exception as error:
+        print(f"skipped {request}: {error}", file=sys.stderr)
+print("Gallery: " + ", ".join(done) if done else "")
+PY
+  ) && { [[ -z $message ]] || push_edits "$dir" "$message"; }; then
+    rm -f "${files[@]}"
+    [[ -z $message ]] || { echo "$message"; cmd_deploy "$HUB_APP"; }
+  else
+    mv "${files[@]}" "$EDITS/failed/"
+    "${GIT[@]}" -C "$dir" reset --quiet --hard origin/main
+    die "the queued gallery edits could not be committed; they are in $EDITS/failed"
+  fi
+}
+
+push_edits() {
+  "${GIT[@]}" -C "$1" add -A
+  "${GIT[@]}" -C "$1" diff --cached --quiet && return 0
+  "${GIT[@]}" -C "$1" -c user.name="emmett.wtf gallery" -c user.email="gallery@emmett.wtf" commit --quiet -m "$2"
+  sudo -u emmett env GIT_SSH_COMMAND="ssh -i $DEPLOY_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+    git -C "$1" push --quiet "git@github.com:$REPO.git" HEAD:main
+}
+
 cmd_list() {
   for file in "$APPS"/*.env; do
     [[ -e $file ]] || continue
@@ -195,10 +254,10 @@ shift || true
 case $command in
   list) cmd_list ;;
   logs) cmd_logs "$@" ;;
-  add | deploy | deploy-all | sync | remove)
+  add | deploy | deploy-all | sync | edits | remove)
     exec 9> /run/wtf-app.lock
     flock -w 900 9 || die "another wtf-app run held the lock for 15 minutes"
     "cmd_${command//-/_}" "$@"
     ;;
-  *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

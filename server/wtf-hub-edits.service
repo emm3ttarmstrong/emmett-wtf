@@ -1,0 +1,8 @@
+[Unit]
+Description=Commit and deploy card edits queued by the emmett.wtf gallery
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wtf-app edits
+TimeoutStartSec=30min

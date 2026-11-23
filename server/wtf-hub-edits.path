@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch for card edits queued by the emmett.wtf gallery
+
+[Path]
+PathExistsGlob=/var/lib/wtf/hub-edits/*.json
+
+[Install]
+WantedBy=paths.target

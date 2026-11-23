@@ -20,6 +20,7 @@ Read `skill/emmett-wtf/SKILL.md` for the step-by-step commands. This file is the
 - `sites/<name>.json`: one file per repo that runs on `<name>.emmett.wtf`. Adding the file launches the site.
 - `app/`: the gallery (`/`), the owner's gallery (`/all`, served at `/` by the proxy), `/login`, `/p/[slug]`, and `api/p/<slug>/` for a prototype's API routes.
 - `proxy.ts`: the privacy gate.
+- `app/api/admin/entries/`: the signed-in gallery's Hide and Delete. It queues an edit that Omarchy commits to `main`.
 - `components/ui/`: shadcn components, all installed. `components/control-panel/`: the shared control panel.
 - `scripts/manifest.mjs`: builds `lib/generated/` from the metadata. It runs before dev, build, lint and typecheck, and it fails the build on a prototype with missing files.
 - `scripts/thumbnails.mjs`: thumbnails and Open Graph media.
@@ -132,11 +133,12 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 
 ## Workflow
 
-1. Run `pnpm check` (lint, type-check and a production build) before every push. All three must pass.
-2. Commit to `main` and push. There are no preview deployments and no pull requests here: Omarchy deploys `main` within about two minutes, and a new prototype is private, so `main` is the preview.
-3. A build that fails on the server leaves the previous version running. Check with `curl -s -o /dev/null -w '%{http_code}' https://emmett.wtf/p/<slug>`, which answers 404 for a private prototype when it is deployed and gated, or from the Mac with `ssh armstrong-server-omarchy sudo wtf-app list`.
-4. End every task with the link, `https://emmett.wtf/p/<slug>`, so Emmett can open it from his phone.
-5. When something goes wrong and gets fixed, add the lesson below so it doesn't happen twice.
+1. Run `git pull` before starting. Emmett hides and deletes entries from the gallery, and each of those is a commit on `main` by "emmett.wtf gallery".
+2. Run `pnpm check` (lint, type-check and a production build) before every push. All three must pass.
+3. Commit to `main` and push. There are no preview deployments and no pull requests here: Omarchy deploys `main` within about two minutes, and a new prototype is private, so `main` is the preview.
+4. A build that fails on the server leaves the previous version running. Check with `curl -s -o /dev/null -w '%{http_code}' https://emmett.wtf/p/<slug>`, which answers 404 for a private prototype when it is deployed and gated, or from the Mac with `ssh armstrong-server-omarchy sudo wtf-app list`.
+5. End every task with the link, `https://emmett.wtf/p/<slug>`, so Emmett can open it from his phone.
+6. When something goes wrong and gets fixed, add the lesson below so it doesn't happen twice.
 
 ## Lessons
 
