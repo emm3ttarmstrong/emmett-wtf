@@ -1,9 +1,12 @@
 {
   "title": "Search Party",
   "description": "A tiny incremental game for the 404 page: search a dark room by torchlight for a page that is never found. The scene is a Rive file built through the Rive MCP.",
-  "tags": ["game", "rive"],
+  "tags": [
+    "game",
+    "rive"
+  ],
   "createdAt": "2026-11-23",
-  "updatedAt": "2026-11-23T23:19:47.000Z",
+  "updatedAt": "2026-11-23T23:26:35.000Z",
   "hidden": false,
   "public": false
 }

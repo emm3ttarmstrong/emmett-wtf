@@ -2,7 +2,7 @@
 
 ## What It Does
 
-A small incremental game meant for the site's 404 page. You search a dark room by torchlight for a page that is never found, hire helpers to search for you, and turn up eight other lost things along the way. The scene is a Rive file that was drawn as SVG, imported and rigged through the Rive MCP, and is driven from React by data binding.
+A small incremental game that is the site's 404 page: `app/not-found.tsx` renders this prototype's component for every missing address, so changes here change the 404 page too. You search a dark room by torchlight for a page that is never found, hire helpers to search for you, and turn up eight other lost things along the way. The scene is a Rive file that was drawn as SVG, imported and rigged through the Rive MCP, and is driven from React by data binding.
 
 ## Architecture
 

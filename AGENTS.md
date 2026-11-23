@@ -22,6 +22,7 @@ Read `skill/emmett-wtf/SKILL.md` for the step-by-step commands. This file is the
 - `sites/<name>.json`: one file per graduated repo that runs on `<name>.emmett.wtf`. The server reads it; the gallery does not.
 - `app/`: the gallery (`/`), the owner's gallery (`/all`, served at `/` by the proxy), `/login`, `/p/[slug]`, and `api/p/<slug>/` for a prototype's API routes.
 - `proxy.ts`: the privacy gate.
+- `app/not-found.tsx`: the 404 page for every missing address, a private prototype's included. It renders the `search-party` prototype's component, so that prototype's game is visible to everyone even while its own URL is private.
 - `app/api/admin/entries/`: the signed-in gallery's card menu: Hide, Make public and Delete. It queues an edit that Omarchy commits to `main`.
 - `components/ui/`: shadcn components, all installed. `components/control-panel/`: the shared control panel.
 - `scripts/manifest.mjs`: builds `lib/generated/` from the metadata. It runs before dev, build, lint and typecheck, and it fails the build on a prototype with missing files.
