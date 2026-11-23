@@ -49,7 +49,8 @@ for (const dir of readdirSync(join(root, "prototypes"), { withFileTypes: true })
   slugs.push(slug);
 }
 
-for (const file of readdirSync(join(root, "sites"))) {
+const sitesDir = join(root, "sites");
+for (const file of existsSync(sitesDir) ? readdirSync(sitesDir) : []) {
   if (!file.endsWith(".json")) continue;
   const slug = file.slice(0, -5);
   const where = `sites/${file}`;
