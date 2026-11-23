@@ -11,6 +11,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@rive-app/react-canvas':
+        specifier: ^4.41.0
+        version: 4.41.0(react@19.3.0)
       '@shadcn/react':
         specifier: ^0.3.1
         version: 0.3.1(@types/react@19.3.0)(react@19.3.0)
@@ -789,6 +792,14 @@ packages:
         optional: true
       react-redux:
         optional: true
+
+  '@rive-app/canvas@2.54.0':
+    resolution: {integrity: sha512-W1ZwZ7qj2r/aDBIt4ekXhmLL9vyRmj9D7UU29w5NcL0WlROSjxmm4qsZQzucRUqD1cPp6PRAwaO4dL2j8eQaiw==}
+
+  '@rive-app/react-canvas@4.41.0':
+    resolution: {integrity: sha512-djqBM8WV2NRD2GDxVb4l9eVNw+s88vD8FIuvH1f5Ro7qFvtWyw0sgibnIo8tBwMJTZS9a0A5QwQVQ4+YoVHJWg==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
@@ -3967,6 +3978,13 @@ snapshots:
       '@types/react': 19.3.0
       react: 19.3.0
       react-redux: 9.3.1(@types/react@19.3.0)(react@19.3.0)(redux@5.0.1)
+
+  '@rive-app/canvas@2.54.0': {}
+
+  '@rive-app/react-canvas@4.41.0(react@19.3.0)':
+    dependencies:
+      '@rive-app/canvas': 2.54.0
+      react: 19.3.0
 
   '@rtsao/scc@1.1.0': {}
 
