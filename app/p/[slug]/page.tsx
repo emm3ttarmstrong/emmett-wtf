@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/site/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { entries, findPrototype } from "@/lib/entries";
+import { entries, findPrototype, SITE_URL } from "@/lib/entries";
 import { registry } from "@/lib/generated/registry";
 
 export function generateStaticParams() {
@@ -24,7 +24,8 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
       description: entry.description,
       url: `/p/${slug}`,
       images: entry.og.image ? [{ url: `/og/${slug}.png`, width: 1200, height: 630 }] : undefined,
-      videos: entry.og.video ? [{ url: `/og/${slug}.mp4`, width: 1200, height: 630, type: "video/mp4" }] : undefined,
+      // Next resolves image URLs against metadataBase but leaves video URLs as written, so this one is absolute.
+      videos: entry.og.video ? [{ url: `${SITE_URL}/og/${slug}.mp4`, width: 1200, height: 630, type: "video/mp4" }] : undefined,
     },
     twitter: { card: "summary_large_image" },
   };
