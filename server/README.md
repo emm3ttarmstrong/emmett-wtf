@@ -8,7 +8,8 @@ Cloudflare (TLS) ──► cloudflared tunnel ──► Caddy on :80 ──► 1
 
 - **DNS**: `*.emmett.wtf` is a proxied CNAME to the tunnel, so a new subdomain needs no DNS change. The apex `emmett.wtf` has its own CNAME to `a669d2f5-e0d6-4ea8-a851-170ac5516b84.cfargotunnel.com`.
 - **Tunnel**: `/etc/cloudflared/config.yml` sends `emmett.wtf` and `*.emmett.wtf` to Caddy.
-- **Caddy**: `/etc/caddy/Caddyfile` imports `/etc/caddy/sites/*.caddy`. `wtf-app` writes one file per app there.
+- **Caddy**: `/etc/caddy/Caddyfile` imports `/etc/caddy/sites/*.caddy`. `wtf-app` writes one file per app there. `_unclaimed.caddy` answers 404 for any hostname no app has claimed, which covers every unused subdomain under the wildcard.
+- **Hostnames**: `sudo wtf-app hosts <name> --host <host> [--redirect <host>]` changes what an app answers to. A redirect host sends visitors to the first host: `www.emmett.wtf` redirects to `emmett.wtf` this way.
 - **Apps**: each is a git checkout in `/home/emmett/services/<name>`, registered in `/etc/wtf/apps/<name>.env`.
 - **Deploys**: `wtf-deploy.timer` runs `wtf-app deploy-all` every minute. An app whose `origin/main` has moved is checked out and deployed. A commit that fails to deploy is not retried until `main` moves again, and the previous version keeps running.
 - **Sites list**: `sites/<name>.json` in this repo lists the graduated repos, as `{"repo": "owner/name"}` with optional `"host"` and `"static"`. After the hub (`emmett-wtf`) deploys, `wtf-app sync` registers any that is new. The gallery does not show them. Sync only adds. Removing a site is `sudo wtf-app remove <name>`.
@@ -28,7 +29,7 @@ Repos are cloned over HTTPS with no credential, so they must be public, and they
 
 On Omarchy, from a checkout of this repo: `sudo server/install.sh`. The checkout in `/home/emmett/services/emmett-wtf` works. Deploying the hub does not reinstall `wtf-app`, so run this after changing anything in `server/`.
 
-The first install also needed two steps by hand: the `emmett.wtf` entry in `/etc/cloudflared/config.yml`, and `sudo wtf-app add emmett-wtf emm3ttarmstrong/emmett-wtf --host emmett.wtf --host www.emmett.wtf`.
+The first install also needed two steps by hand: the `emmett.wtf` entry in `/etc/cloudflared/config.yml`, and `sudo wtf-app add emmett-wtf emm3ttarmstrong/emmett-wtf --host emmett.wtf`, followed by `sudo wtf-app hosts emmett-wtf --host emmett.wtf --redirect www.emmett.wtf`.
 
 ## Trust
 

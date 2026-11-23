@@ -3,6 +3,7 @@
 # a Caddy site, and either a Docker Compose project or a folder of static files. Run it with sudo.
 #
 #   wtf-app add <name> <owner/repo> [--host <host>]... [--static <dir>]   register an app and deploy it
+#   wtf-app hosts <name> --host <host>... [--redirect <host>]...           change an app's hostnames
 #   wtf-app deploy <name> [--force]     deploy if origin/main has moved, or always with --force
 #   wtf-app deploy-all                  what wtf-deploy.timer runs every minute
 #   wtf-app sync                        add every site listed in emmett-wtf's sites/*.json that isn't registered yet
@@ -11,7 +12,7 @@
 #   wtf-app logs <name>                 the container's recent logs
 #   wtf-app remove <name>               stop the app and delete its checkout, site and registration
 #
-# <name> serves <name>.emmett.wtf unless --host says otherwise. See server/README.md for what an app repo must contain.
+# <name> serves <name>.emmett.wtf unless --host says otherwise. A --redirect host sends visitors to the first --host. See server/README.md for what an app repo must contain.
 set -euo pipefail
 
 ROOT=${WTF_ROOT:-}  # empty on the server; tests point it at a sandbox
@@ -33,11 +34,16 @@ valid_name() { [[ $1 =~ ^[a-z0-9][a-z0-9-]{0,40}$ ]] || die "'$1' isn't a valid 
 load() {
   valid_name "$1"
   [[ -f $APPS/$1.env ]] || die "no app named '$1'"
-  NAME= REPO= HOSTS= PORT= MODE= STATIC_DIR=
+  NAME= REPO= HOSTS= REDIRECTS= PORT= MODE= STATIC_DIR=
   # shellcheck disable=SC1090
   . "$APPS/$1.env"
 }
 compose() { (cd "$SERVICES/$NAME" && PORT=$PORT docker compose -p "wtf-$NAME" "$@"); }
+
+save_app() {
+  printf 'NAME=%q\nREPO=%q\nHOSTS=%q\nREDIRECTS=%q\nPORT=%s\nMODE=%s\nSTATIC_DIR=%q\n' \
+    "$NAME" "$REPO" "$HOSTS" "$REDIRECTS" "$PORT" "$MODE" "$STATIC_DIR" > "$APPS/$NAME.env"
+}
 
 next_port() {
   local port=$FIRST_PORT
@@ -53,6 +59,9 @@ write_site() {
   else
     printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' "$addresses" "$PORT" > "$file"
   fi
+  for host in $REDIRECTS; do
+    printf '%s:80 {\n\tredir https://%s{uri} permanent\n}\n' "$host" "${HOSTS%% *}" >> "$file"
+  done
   if ! caddy validate --config "$ROOT/etc/caddy/Caddyfile" > /dev/null 2>&1; then
     rm -f "$file"
     die "Caddy rejected the site for $NAME, so it was not added"
@@ -80,19 +89,41 @@ cmd_add() {
   hosts=${hosts:-$name.emmett.wtf}
   for host in $hosts; do
     [[ $host =~ ^[a-z0-9.-]+$ ]] || die "'$host' isn't a hostname"
-    ! grep -qs "^HOSTS=.*\b$host\b" "$APPS"/*.env || die "$host already belongs to another app"
+    ! grep -qs -E "^(HOSTS|REDIRECTS)=.*\b$host\b" "$APPS"/*.env || die "$host already belongs to another app"
   done
 
   install -d -m 755 "$APPS" "$STATE" "$CADDY_SITES"
   install -d -m 700 "$SECRETS"
   install -d -o emmett -g emmett "$SERVICES"
   [[ -d $SERVICES/$name ]] || "${GIT[@]}" clone --quiet "https://github.com/$repo.git" "$SERVICES/$name"
-  NAME=$name REPO=$repo HOSTS=$hosts PORT=$(next_port) MODE=${static:+static} STATIC_DIR=$static
+  NAME=$name REPO=$repo HOSTS=$hosts REDIRECTS= PORT=$(next_port) MODE=${static:+static} STATIC_DIR=$static
   MODE=${MODE:-docker}
-  printf 'NAME=%q\nREPO=%q\nHOSTS=%q\nPORT=%s\nMODE=%s\nSTATIC_DIR=%q\n' "$NAME" "$REPO" "$HOSTS" "$PORT" "$MODE" "$STATIC_DIR" > "$APPS/$name.env"
+  save_app
   write_site
   echo "added $name: $hosts"
   cmd_deploy "$name" --force
+}
+
+cmd_hosts() {
+  load "${1:-}"
+  shift
+  local hosts= redirects=
+  while (($#)); do
+    case $1 in
+      --host) hosts+="${hosts:+ }$2"; shift 2 ;;
+      --redirect) redirects+="${redirects:+ }$2"; shift 2 ;;
+      *) die "unknown option $1" ;;
+    esac
+  done
+  [[ -n $hosts ]] || die "usage: wtf-app hosts <name> --host <host>... [--redirect <host>]..."
+  for host in $hosts $redirects; do
+    [[ $host =~ ^[a-z0-9.-]+$ ]] || die "'$host' isn't a hostname"
+    ! grep -s -E "^(HOSTS|REDIRECTS)=.*\b$host\b" "$APPS"/*.env | grep -qv "^$APPS/$NAME.env:" || die "$host already belongs to another app"
+  done
+  HOSTS=$hosts REDIRECTS=$redirects
+  save_app
+  write_site
+  echo "$NAME: serves $HOSTS${REDIRECTS:+, redirects $REDIRECTS}"
 }
 
 # Deploys origin/main. A commit that failed to deploy isn't tried again until main moves, so a broken build doesn't loop.
@@ -235,7 +266,7 @@ cmd_list() {
     load "$(basename "$file" .env)"
     local sha
     sha=$(cat "$STATE/$NAME.sha" 2> /dev/null || echo "not deployed")
-    printf '%-20s %-8s %-6s %-9s %s\n' "$NAME" "$MODE" "$PORT" "${sha:0:7}" "$HOSTS"
+    printf '%-20s %-8s %-6s %-9s %s\n' "$NAME" "$MODE" "$PORT" "${sha:0:7}" "$HOSTS${REDIRECTS:+ (redirects: $REDIRECTS)}"
   done
 }
 
@@ -257,10 +288,10 @@ shift || true
 case $command in
   list) cmd_list ;;
   logs) cmd_logs "$@" ;;
-  add | deploy | deploy-all | sync | edits | remove)
+  add | hosts | deploy | deploy-all | sync | edits | remove)
     exec 9> /run/wtf-app.lock
     flock -w 900 9 || die "another wtf-app run held the lock for 15 minutes"
     "cmd_${command//-/_}" "$@"
     ;;
-  *) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

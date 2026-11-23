@@ -16,6 +16,18 @@ if ! grep -q '^import sites/\*\.caddy' /etc/caddy/Caddyfile; then
   systemctl restart caddy
 fi
 
+# A hostname no app has claimed answers 404. Without this, Caddy answers an empty 200 for every unknown subdomain
+# that the wildcard DNS record sends here.
+if [[ ! -f /etc/caddy/sites/_unclaimed.caddy ]]; then
+  printf ':80 {\n\trespond 404\n}\n' > /etc/caddy/sites/_unclaimed.caddy
+  if caddy validate --config /etc/caddy/Caddyfile > /dev/null 2>&1; then
+    systemctl restart caddy
+  else
+    rm -f /etc/caddy/sites/_unclaimed.caddy
+    echo "Caddy rejected the 404 catch-all, so it was not added." >&2
+  fi
+fi
+
 systemctl daemon-reload
 systemctl enable --now wtf-deploy.timer wtf-hub-edits.path
 echo "wtf-app installed"
