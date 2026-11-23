@@ -40,6 +40,17 @@ load() {
 }
 compose() { (cd "$SERVICES/$NAME" && PORT=$PORT docker compose -p "wtf-$NAME" "$@"); }
 
+# Whether an app other than $2 already serves or redirects the hostname $1.
+host_taken() {
+  local file
+  for file in "$APPS"/*.env; do
+    [[ -e $file && $file != "$APPS/$2.env" ]] || continue
+    # shellcheck disable=SC1090
+    (HOSTS= REDIRECTS=; . "$file"; [[ " $HOSTS $REDIRECTS " == *" $1 "* ]]) && return 0
+  done
+  return 1
+}
+
 save_app() {
   printf 'NAME=%q\nREPO=%q\nHOSTS=%q\nREDIRECTS=%q\nPORT=%s\nMODE=%s\nSTATIC_DIR=%q\n' \
     "$NAME" "$REPO" "$HOSTS" "$REDIRECTS" "$PORT" "$MODE" "$STATIC_DIR" > "$APPS/$NAME.env"
@@ -89,7 +100,7 @@ cmd_add() {
   hosts=${hosts:-$name.emmett.wtf}
   for host in $hosts; do
     [[ $host =~ ^[a-z0-9.-]+$ ]] || die "'$host' isn't a hostname"
-    ! grep -qs -E "^(HOSTS|REDIRECTS)=.*\b$host\b" "$APPS"/*.env || die "$host already belongs to another app"
+    ! host_taken "$host" "$name" || die "$host already belongs to another app"
   done
 
   install -d -m 755 "$APPS" "$STATE" "$CADDY_SITES"
@@ -118,7 +129,7 @@ cmd_hosts() {
   [[ -n $hosts ]] || die "usage: wtf-app hosts <name> --host <host>... [--redirect <host>]..."
   for host in $hosts $redirects; do
     [[ $host =~ ^[a-z0-9.-]+$ ]] || die "'$host' isn't a hostname"
-    ! grep -s -E "^(HOSTS|REDIRECTS)=.*\b$host\b" "$APPS"/*.env | grep -qv "^$APPS/$NAME.env:" || die "$host already belongs to another app"
+    ! host_taken "$host" "$NAME" || die "$host already belongs to another app"
   done
   HOSTS=$hosts REDIRECTS=$redirects
   save_app
