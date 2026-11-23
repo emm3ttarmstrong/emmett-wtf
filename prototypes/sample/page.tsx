@@ -4,7 +4,7 @@ import { ControlPanel, useControls } from "@/components/control-panel";
 import { controls as schema, SLUG } from "./data";
 import { Drawing } from "./drawing";
 
-export default function Spirograph() {
+export default function Sample() {
   const controls = useControls(SLUG, schema);
   return (
     <ControlPanel controls={controls}>

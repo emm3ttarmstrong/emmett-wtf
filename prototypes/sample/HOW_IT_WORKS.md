@@ -1,13 +1,13 @@
-# Spirograph
+# Sample
 
 ## What It Does
 
-Draws a hypotrochoid, the curve a pen makes when a gear rolls inside a toothed ring. The control panel changes the gear sizes, the pen position and the number of stacked layers.
+The worked example that new prototypes copy. It draws a hypotrochoid, the curve a pen makes when a gear rolls inside a toothed ring. The control panel changes the gear sizes, the pen position and the number of stacked layers.
 
 ## Architecture
 
 ```
-control panel ──► useControls (state + localStorage "spirograph:controls")
+control panel ──► useControls (state + localStorage "sample:controls")
                         │ values
                         ▼
                   Drawing ──► curve() ──► toPath() ──► <svg><path/></svg>
@@ -28,7 +28,7 @@ control panel ──► useControls (state + localStorage "spirograph:controls")
 ## Component Tree
 
 ```
-Spirograph (page.tsx)
+Sample (page.tsx)
 └── ControlPanel
     └── Drawing
 ```

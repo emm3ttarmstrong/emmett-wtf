@@ -89,7 +89,7 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 ### Control panels
 
 - Anything with tunable parameters gets a control panel, never scattered inputs.
-- Use `@/components/control-panel`: define a schema of `range`, `toggle` and `select` controls in `data.ts`, call `useControls(slug, schema)`, and wrap the subject in `<ControlPanel controls={controls}>`. That gives persistence, Reset and Randomize, a side column from `lg` up and a bottom sheet on phones. `prototypes/spirograph` is the worked example.
+- Use `@/components/control-panel`: define a schema of `range`, `toggle` and `select` controls in `data.ts`, call `useControls(slug, schema)`, and wrap the subject in `<ControlPanel controls={controls}>`. That gives persistence, Reset and Randomize, a side column from `lg` up and a bottom sheet on phones. `prototypes/sample` is the worked example.
 - If a prototype needs a control type the library lacks, add it to the library.
 
 ### Mobile first
@@ -150,3 +150,4 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 - Git doesn't track empty folders, so scripts must not assume `sites/` or `public/og/` exists.
 - A Caddy change on Omarchy needs `systemctl restart caddy`. Reload fails because the admin API is off.
 - `pkill -f "next start"` does not stop a production server, because the process renames itself. A server left on a port makes every later test hit an old build. Stop it by port: `lsof -ti :<port> | xargs kill`.
+- Emmett's global gitignore excludes `*.mp4`. This repo's `.gitignore` re-includes `public/og/*.mp4`; after capturing, check `git status` shows the video.

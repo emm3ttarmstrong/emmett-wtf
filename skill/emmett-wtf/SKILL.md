@@ -12,7 +12,7 @@ The repo is on the Mac at `~/projects/personal/emmett-wtf`. Clone it if it isn't
 ## Add a prototype
 
 1. `git pull`, then pick a slug: lowercase letters, digits and dashes.
-2. Create `prototypes/<slug>/` with `page.tsx` (default-exports the component), `metadata.json` (`"public": false`) and `HOW_IT_WORKS.md`. Copy the shape of `prototypes/spirograph/`.
+2. Create `prototypes/<slug>/` with `page.tsx` (default-exports the component), `metadata.json` (`"public": false`) and `HOW_IT_WORKS.md`. Copy the shape of `prototypes/sample/`.
 3. Follow every rule in `AGENTS.md`.
 4. Run `pnpm dev` and try it at `http://localhost:3000/p/<slug>`, at 375px wide and in both themes.
 5. Run `pnpm thumbnails <slug>` and look at the images in `public/thumbnails/` and `public/og/`.

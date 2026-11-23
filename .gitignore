@@ -45,3 +45,6 @@ next-env.d.ts
 
 # queued gallery edits when running the container locally
 /.edits/
+
+# the global gitignore excludes video; Open Graph videos are part of the site
+!/public/og/*.mp4

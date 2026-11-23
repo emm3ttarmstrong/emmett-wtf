@@ -1,6 +1,6 @@
 import type { Schema } from "@/components/control-panel";
 
-export const SLUG = "spirograph";
+export const SLUG = "sample";
 
 export const controls = {
   ring: { type: "range", label: "Ring teeth", min: 24, max: 120, step: 1, default: 96 },

@@ -1,0 +1,11 @@
+{
+  "title": "Sample",
+  "description": "The example every prototype copies: a spirograph with a control panel.",
+  "tags": [
+    "generative"
+  ],
+  "createdAt": "2026-11-23",
+  "updatedAt": "2026-11-23T21:00:00.000Z",
+  "hidden": false,
+  "public": true
+}
