@@ -1,9 +1,10 @@
 # emmett.wtf
 
-A prototype hub: one Next.js app that holds many small prototypes, and a gallery that also lists separate repos running on subdomains of emmett.wtf.
+A prototype hub: one Next.js app that holds many small prototypes, with a public gallery.
 
 - `AGENTS.md`: the rules for building in this repo.
-- `skill/emmett-wtf/SKILL.md`: how to add a prototype, make one public, or launch a repo on a subdomain.
+- `skill/emmett-wtf/SKILL.md`: how to add a prototype or make one public.
+- `skill/emmett-wtf-graduate/SKILL.md`: how to move something onto its own subdomain.
 - `server/README.md`: how it runs on the server.
 
 ```

@@ -1,4 +1,4 @@
-// Reads prototypes/*/metadata.json and sites/*.json and writes lib/generated/{manifest.json,registry.ts}.
+// Reads prototypes/*/metadata.json and writes lib/generated/{manifest.json,registry.ts}.
 // Runs before dev, build, lint and typecheck. The generated files are not committed.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -45,20 +45,8 @@ for (const dir of readdirSync(join(root, "prototypes"), { withFileTypes: true })
   for (const file of ["page.tsx", "metadata.json", "HOW_IT_WORKS.md"]) {
     if (!existsSync(join(root, where, file))) fail(`${where} is missing ${file}`);
   }
-  entries.push({ kind: "prototype", href: `/p/${slug}`, ...common(slug, readJson(join(root, where, "metadata.json")), where) });
+  entries.push({ href: `/p/${slug}`, ...common(slug, readJson(join(root, where, "metadata.json")), where) });
   slugs.push(slug);
-}
-
-const sitesDir = join(root, "sites");
-for (const file of existsSync(sitesDir) ? readdirSync(sitesDir) : []) {
-  if (!file.endsWith(".json")) continue;
-  const slug = file.slice(0, -5);
-  const where = `sites/${file}`;
-  if (!SLUG.test(slug)) fail(`${where}: file names are lowercase letters, digits and dashes`);
-  if (slugs.includes(slug)) fail(`${where} has the same name as a prototype`);
-  const m = readJson(join(root, where));
-  const host = m.host ?? `${slug}.emmett.wtf`;
-  entries.push({ kind: "site", href: `https://${host}`, host, ...common(slug, m, where) });
 }
 
 entries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -76,4 +64,4 @@ ${slugs.map((s) => `  ${JSON.stringify(s)}: () => import("@/prototypes/${s}/page
 };
 `,
 );
-console.log(`manifest: ${slugs.length} prototypes, ${entries.length - slugs.length} sites`);
+console.log(`manifest: ${slugs.length} prototypes`);

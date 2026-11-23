@@ -1,4 +1,3 @@
-import { ArrowUpRightIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { Entry } from "@/lib/entries";
 import { cn } from "@/lib/utils";
@@ -32,9 +31,6 @@ export function GalleryCard({ entry, owner, pending, onEdit }: Props) {
         <div className="flex flex-col gap-1 p-4">
           <div className="flex items-center gap-2">
             <h2 className="font-medium">{entry.title}</h2>
-            {entry.kind === "site" && (
-              <ArrowUpRightIcon className="size-4 text-muted-foreground" aria-label="Opens its own site" />
-            )}
             {owner && (
               <span className="ml-auto flex gap-1">
                 {pending ? (

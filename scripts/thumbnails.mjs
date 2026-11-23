@@ -1,9 +1,9 @@
 // Captures gallery thumbnails (light and dark) and, for every prototype, the Open Graph image and video.
 // A private prototype gets them too, so the gallery can make it public later without a browser.
 //
-//   pnpm thumbnails                 every prototype and site
+//   pnpm thumbnails                 every prototype
 //   pnpm thumbnails a b             only these slugs
-//   pnpm thumbnails --missing       only entries without a thumbnail
+//   pnpm thumbnails --missing       only prototypes without a thumbnail or Open Graph image
 //   pnpm thumbnails --no-build a    reuse the existing production build
 //
 // It runs a production build with the gate open, so private prototypes are captured too.
@@ -31,12 +31,12 @@ else run("pnpm", ["build"]);
 const manifest = JSON.parse(readFileSync(join(root, "lib/generated/manifest.json"), "utf8"));
 const unknown = wanted.filter((slug) => !manifest.some((e) => e.slug === slug));
 if (unknown.length) {
-  console.error(`thumbnails: no such prototype or site: ${unknown.join(", ")}`);
+  console.error(`thumbnails: no such prototype: ${unknown.join(", ")}`);
   process.exit(1);
 }
 const targets = manifest.filter((e) => {
   if (wanted.length) return wanted.includes(e.slug);
-  if (flags.has("--missing")) return !(e.thumb.light && e.thumb.dark) || (e.kind === "prototype" && !e.og.image);
+  if (flags.has("--missing")) return !(e.thumb.light && e.thumb.dark && e.og.image);
   return true;
 });
 if (!targets.length) {
@@ -86,7 +86,7 @@ async function open(entry, theme, options) {
     } catch {}
   }, theme);
   const page = await context.newPage();
-  const url = entry.kind === "site" ? entry.href : base + entry.href;
+  const url = base + entry.href;
   const response = await page.goto(url, { waitUntil: "load", timeout: 30000 });
   if (!response || !response.ok()) throw new Error(`${url} answered ${response?.status()}`);
   return { context, page };
@@ -100,27 +100,25 @@ for (const entry of targets) {
       await page.screenshot({ path: join(root, `public/thumbnails/${entry.slug}-${theme}.png`) });
       await context.close();
     }
-    if (entry.kind === "prototype") {
-      const size = { width: 1200, height: 630 };
-      const videoDir = join(root, ".next/og-video");
-      const { context, page } = await open(entry, "dark", { viewport: size, recordVideo: { dir: videoDir, size } });
-      await page.waitForTimeout(VIDEO_MS);
-      await page.screenshot({ path: join(root, `public/og/${entry.slug}.png`) });
-      const video = page.video();
-      await context.close();
-      const webm = await video.path();
-      const mp4 = join(root, `public/og/${entry.slug}.mp4`);
-      const ffmpeg = spawnSync(
-        "ffmpeg",
-        ["-y", "-loglevel", "error", "-i", webm, "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "30", "-movflags", "+faststart", mp4],
-        { stdio: "inherit" },
-      );
-      if (ffmpeg.status !== 0) {
-        if (existsSync(mp4)) rmSync(mp4);
-        console.warn(`thumbnails: ${entry.slug} has no og:video, because ffmpeg is missing or failed`);
-      }
-      rmSync(videoDir, { recursive: true, force: true });
+    const size = { width: 1200, height: 630 };
+    const videoDir = join(root, ".next/og-video");
+    const { context, page } = await open(entry, "dark", { viewport: size, recordVideo: { dir: videoDir, size } });
+    await page.waitForTimeout(VIDEO_MS);
+    await page.screenshot({ path: join(root, `public/og/${entry.slug}.png`) });
+    const video = page.video();
+    await context.close();
+    const webm = await video.path();
+    const mp4 = join(root, `public/og/${entry.slug}.mp4`);
+    const ffmpeg = spawnSync(
+      "ffmpeg",
+      ["-y", "-loglevel", "error", "-i", webm, "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "30", "-movflags", "+faststart", mp4],
+      { stdio: "inherit" },
+    );
+    if (ffmpeg.status !== 0) {
+      if (existsSync(mp4)) rmSync(mp4);
+      console.warn(`thumbnails: ${entry.slug} has no og:video, because ffmpeg is missing or failed`);
     }
+    rmSync(videoDir, { recursive: true, force: true });
     console.log(`thumbnails: ${entry.slug}`);
   } catch (error) {
     failed.push(entry.slug);

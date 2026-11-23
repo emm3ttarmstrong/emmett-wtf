@@ -59,9 +59,7 @@ export function CardMenu({ entry, onEdit }: { entry: Entry; onEdit: (action: Edi
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {entry.title}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {entry.kind === "site"
-                ? `This removes the card. The site keeps running at ${entry.host} until it is removed on the server.`
-                : "This removes its code from the repo. It can be restored from git history."}
+              This removes its code from the repo. It can be restored from git history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

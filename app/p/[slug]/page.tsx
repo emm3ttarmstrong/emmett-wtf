@@ -8,7 +8,7 @@ import { entries, findPrototype } from "@/lib/entries";
 import { registry } from "@/lib/generated/registry";
 
 export function generateStaticParams() {
-  return entries.filter((e) => e.kind === "prototype").map((e) => ({ slug: e.slug }));
+  return entries.map((e) => ({ slug: e.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Promise<Metadata> {

@@ -10,14 +10,16 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # emmett.wtf
 
-Emmett's prototype hub. One Next.js app at https://emmett.wtf holds many small prototypes at `/p/<slug>`, and the gallery also lists separate repos that run on their own subdomains. Emmett asks for prototypes from his phone, so every one must be quick to build, consistent, and unable to break another.
+Emmett's prototype hub. One Next.js app at https://emmett.wtf holds many small prototypes at `/p/<slug>`. Emmett asks for prototypes from his phone, so every one must be quick to build, consistent, and unable to break another.
+
+Everything starts as a prototype here. Never suggest a separate repo or a subdomain for a new idea. Graduating a prototype to its own subdomain happens only when Emmett asks, and `skill/emmett-wtf-graduate/SKILL.md` covers it.
 
 Read `skill/emmett-wtf/SKILL.md` for the step-by-step commands. This file is the rules.
 
 ## Map
 
 - `prototypes/<slug>/`: one folder per prototype. `page.tsx`, `metadata.json`, `HOW_IT_WORKS.md`, plus its own files.
-- `sites/<name>.json`: one file per repo that runs on `<name>.emmett.wtf`. Adding the file launches the site.
+- `sites/<name>.json`: one file per graduated repo that runs on `<name>.emmett.wtf`. The server reads it; the gallery does not.
 - `app/`: the gallery (`/`), the owner's gallery (`/all`, served at `/` by the proxy), `/login`, `/p/[slug]`, and `api/p/<slug>/` for a prototype's API routes.
 - `proxy.ts`: the privacy gate.
 - `app/api/admin/entries/`: the signed-in gallery's card menu: Hide, Make public and Delete. It queues an edit that Omarchy commits to `main`.
@@ -28,12 +30,12 @@ Read `skill/emmett-wtf/SKILL.md` for the step-by-step commands. This file is the
 
 ## Privacy
 
-- The gallery is public. It shows only entries with `"public": true`.
+- The gallery is public. It shows only prototypes with `"public": true`.
 - A prototype is private until its metadata says `"public": true`. A private prototype answers 404 to everyone but Emmett, who signs in at `/login`. Never redirect a private URL to the login page, because that confirms the name exists.
 - Make a prototype public only when Emmett asks for that prototype by name. He can also do it himself from the card menu in the gallery, which is why every prototype needs its Open Graph media from the start.
-- A private entry's thumbnails and Open Graph files are gated like its page.
+- A private prototype's thumbnails and Open Graph files are gated like its page.
 - This repo is public, so a private prototype's code is readable on GitHub. The gate hides the running page, not the source. Keep secrets out of the repo.
-- `"hidden": true` keeps an entry out of the gallery for everyone until Emmett switches on Hidden.
+- `"hidden": true` keeps a prototype out of the gallery for everyone until Emmett switches on Hidden.
 
 ## Rules for every prototype
 

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     await mkdir(dir, { recursive: true });
     const name = `${Date.now()}-${entry.slug}`;
     // Written under another name and renamed, so the watcher never reads half a file.
-    await writeFile(join(dir, `${name}.tmp`), JSON.stringify({ slug: entry.slug, kind: entry.kind, action }));
+    await writeFile(join(dir, `${name}.tmp`), JSON.stringify({ slug: entry.slug, action }));
     await rename(join(dir, `${name}.tmp`), join(dir, `${name}.json`));
     return NextResponse.json({ ok: true }, { status: 202 });
   } catch {

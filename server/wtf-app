@@ -191,12 +191,12 @@ for request in requests:
         slug, action = edit["slug"], edit["action"]
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug) or action not in ("hide", "unhide", "publish", "unpublish", "delete"):
             raise ValueError("bad request")
-        folder, site = repo / "prototypes" / slug, repo / "sites" / f"{slug}.json"
-        meta = folder / "metadata.json" if folder.is_dir() else site
+        folder = repo / "prototypes" / slug
+        meta = folder / "metadata.json"
         if not meta.is_file():
             continue  # already deleted
         if action == "delete":
-            shutil.rmtree(folder) if folder.is_dir() else site.unlink()
+            shutil.rmtree(folder)
             for media in [*repo.glob(f"public/thumbnails/{slug}-*.png"), *repo.glob(f"public/og/{slug}.*")]:
                 media.unlink()
         else:
