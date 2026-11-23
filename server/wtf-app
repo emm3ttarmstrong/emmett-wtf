@@ -54,7 +54,8 @@ write_site() {
     rm -f "$file"
     die "Caddy rejected the site for $NAME, so it was not added"
   fi
-  systemctl reload caddy
+  # The Caddyfile has `admin off`, so Caddy cannot reload in place.
+  systemctl restart caddy
 }
 
 cmd_add() {
@@ -184,7 +185,8 @@ cmd_remove() {
   [[ $MODE != docker ]] || compose down --remove-orphans || true
   rm -f "$CADDY_SITES/$NAME.caddy" "$APPS/$NAME.env" "$SECRETS/$NAME.env" "$STATE/$NAME.sha" "$STATE/$NAME.failed"
   rm -rf "${SERVICES:?}/$NAME"
-  systemctl reload caddy
+  # The Caddyfile has `admin off`, so Caddy cannot reload in place.
+  systemctl restart caddy
   echo "removed $NAME"
 }
 

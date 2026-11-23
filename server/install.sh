@@ -13,7 +13,7 @@ install -d -o emmett -g emmett /home/emmett/services
 if ! grep -q '^import sites/\*\.caddy' /etc/caddy/Caddyfile; then
   printf '\n# emmett.wtf apps, written by wtf-app\nimport sites/*.caddy\n' >> /etc/caddy/Caddyfile
   caddy validate --config /etc/caddy/Caddyfile > /dev/null
-  systemctl reload caddy
+  systemctl restart caddy
 fi
 
 systemctl daemon-reload
