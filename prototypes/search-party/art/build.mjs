@@ -1,9 +1,11 @@
 // Generates the Torchlight artwork as plain SVG. Run: node prototypes/search-party/art/build.mjs
 // Every drawing is a function, so one definition serves the review sheet and the files imported into Rive.
 // Output SVG sticks to shapes, groups and flat fills, which Rive's SVG import turns into editable shapes.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const out = new URL("./svg/", import.meta.url).pathname;
+// Positions and beam sizes shared with the game code.
+const GEO = JSON.parse(readFileSync(new URL("../geometry.json", import.meta.url), "utf8"));
 mkdirSync(out, { recursive: true });
 
 // Character colours. Characters carry their own light, so they keep these in the dark.
@@ -63,7 +65,7 @@ function features(mood, cx, cy) {
 function torch(aim, rig = false) {
   return g(
     rig ? "translate(50 -84)" : `translate(50 -84) rotate(${aim})`,
-    (rig ? `<path id="haze" d="M34 -11.600 L607 -241 L607 241 L34 11.600 Z" fill="url(#haze)"/>` : "") +
+    (rig ? `<path id="haze" d="${rig}" fill="url(#hz-main)"/>` : "") +
     `<rect x="-8" y="-6.5" width="30" height="13" rx="4" fill="${C.slate}"/>` +
       `<rect x="-2" y="-6.5" width="4" height="13" fill="${C.slateDark}"/><rect x="5" y="-6.5" width="4" height="13" fill="${C.slateDark}"/>` +
       `<rect x="10" y="-9.5" width="8" height="4" rx="2" fill="${C.yellow}"/>` +
@@ -80,11 +82,11 @@ function searcher({ aim = -10, mood = "smile", rig = false } = {}) {
     `<rect x="-44" y="-72" width="14" height="14" rx="4" fill="${C.slateDark}"/>` +
     `<rect x="-50" y="-117" width="32" height="14" rx="7" fill="${C.slateLight}"/>` +
     `<path d="M-40 -117 v14 M-28 -117 v14" stroke="${C.slate}" stroke-width="2.5"/>`;
+  const leg = (name, rect, boot, stripe, sole) =>
+    `<g${rig ? ` id="${name}"` : ""}><rect x="${rect}" y="-32" width="13" height="20" fill="${C.slateDark}"/><path d="${boot}" fill="${C.boot}"/>` +
+    `<rect x="${stripe}" y="-18" width="20" height="4" fill="${C.yellow}"/><rect x="${stripe}" y="-3" width="${sole}" height="3" fill="${C.ink}"/></g>`;
   const legs =
-    `<rect x="-21" y="-32" width="13" height="20" fill="${C.slateDark}"/><rect x="9" y="-32" width="13" height="20" fill="${C.slateDark}"/>` +
-    `<path d="M-27 0 v-12 a6 6 0 0 1 6 -6 h14 v18 z" fill="${C.boot}"/><path d="M3 0 v-18 h13 a15 15 0 0 1 15 15 v3 z" fill="${C.boot}"/>` +
-    `<rect x="-27" y="-18" width="20" height="4" fill="${C.yellow}"/><rect x="3" y="-18" width="20" height="4" fill="${C.yellow}"/>` +
-    `<rect x="-27" y="-3" width="20" height="3" fill="${C.ink}"/><rect x="3" y="-3" width="28" height="3" fill="${C.ink}"/>`;
+    leg("leg-l", -21, "M-27 0 v-12 a6 6 0 0 1 6 -6 h14 v18 z", -27, 20) + leg("leg-r", 9, "M3 0 v-18 h13 a15 15 0 0 1 15 15 v3 z", 3, 28);
   const backArm =
     `<path d="M-20 -98 L-31 -58" stroke="${C.yellowShade}" stroke-width="17" stroke-linecap="round"/>` +
     `<circle cx="-32" cy="-52" r="7.5" fill="${C.skinShade}"/>`;
@@ -112,7 +114,7 @@ function searcher({ aim = -10, mood = "smile", rig = false } = {}) {
 }
 
 // ───────────────────────── Helpers ─────────────────────────
-function intern() {
+function intern(cone = true) {
   return g(
     "",
     `<rect x="-17" y="-30" width="11" height="22" fill="${C.slateDark}"/><rect x="7" y="-30" width="11" height="22" fill="${C.slateDark}"/>` +
@@ -138,7 +140,7 @@ function intern() {
       `<ellipse cx="-14" cy="-98" rx="4.5" ry="2.8" fill="${C.blush}" fill-opacity="0.75"/><ellipse cx="24" cy="-98" rx="4.5" ry="2.8" fill="${C.blush}" fill-opacity="0.75"/>` +
       `<path d="M0 -95 q2.5 -3 5 0 q2.5 3 5 0" stroke="${C.ink}" stroke-width="2.2" stroke-linecap="round"/>` +
       // phone torch
-      `<path d="M38 -112 L78 -134 L78 -86 Z" fill="${C.beam}" fill-opacity="0.28"/>` +
+      (cone ? `<path d="M38 -112 L78 -134 L78 -86 Z" fill="${C.beam}" fill-opacity="0.28"/>` : "") +
       `<path d="M18 -78 L38 -96" stroke="${C.cream}" stroke-width="13" stroke-linecap="round"/>` +
       `<rect x="31" y="-122" width="13" height="24" rx="3.5" fill="${C.slateDark}"/><circle cx="40" cy="-117" r="2.2" fill="${C.beamCore}"/>` +
       `<circle cx="39" cy="-97" r="7" fill="${C.skin}"/>`,
@@ -146,11 +148,11 @@ function intern() {
   );
 }
 
-function crawler() {
+function crawler(cone = true) {
   const leg = (d) => `<path d="${d}" stroke="${C.slateDark}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`;
   return g(
     "",
-    `<path d="M26 -40 L70 -54 L70 -22 Z" fill="${C.beam}" fill-opacity="0.28"/>` +
+    (cone ? `<path d="M26 -40 L70 -54 L70 -22 Z" fill="${C.beam}" fill-opacity="0.28"/>` : "") +
       leg("M-30 -20 L-50 -32 L-56 -2") + leg("M-20 -16 L-34 -18 L-38 -2") + leg("M30 -20 L50 -32 L56 -2") + leg("M20 -16 L34 -18 L38 -2") + leg("M-6 -14 L-9 -2") + leg("M6 -14 L9 -2") +
       `<circle cx="-56" cy="-2" r="3.5" fill="${C.yellow}"/><circle cx="56" cy="-2" r="3.5" fill="${C.yellow}"/><circle cx="-38" cy="-2" r="3" fill="${C.yellow}"/><circle cx="38" cy="-2" r="3" fill="${C.yellow}"/>` +
       `<path d="M-12 -52 L-18 -74" stroke="${C.slateDark}" stroke-width="3" stroke-linecap="round"/><circle cx="-19" cy="-77" r="5" fill="${C.yellow}"/>` +
@@ -217,13 +219,13 @@ function detective() {
   );
 }
 
-function satellite() {
+function satellite(cone = true) {
   const panel = (x) =>
     `<rect x="${x}" y="-17" width="50" height="34" rx="3" fill="${C.slate}"/>` +
     `<path d="M${x + 12.5} -17 v34 M${x + 25} -17 v34 M${x + 37.5} -17 v34 M${x} 0 h50" stroke="${C.slateLight}" stroke-width="1.8"/>`;
   return g(
     "rotate(-12)",
-    `<path d="M-5 22 L5 22 L30 84 L-30 84 Z" fill="${C.beam}" fill-opacity="0.25"/>` +
+    (cone ? `<path d="M-5 22 L5 22 L30 84 L-30 84 Z" fill="${C.beam}" fill-opacity="0.25"/>` : "") +
       `<rect x="-32" y="-3.5" width="64" height="7" fill="${C.slateDark}"/>` +
       panel(-82) + panel(32) +
       `<path d="M0 -20 v-10" stroke="${C.slateDark}" stroke-width="3.5"/><path d="M-13 -37 Q0 -22 13 -37 Z" fill="${C.creamShade}"/><circle cx="0" cy="-41" r="3.5" fill="${C.yellow}"/>` +
@@ -404,93 +406,122 @@ function plant(t) {
   return leaf(-38, 0.95) + leaf(34, 0.8) + leaf(-10, 1.15) + leaf(12, 1) + `<path d="M356 288 h32 l-4 30 h-24 z" fill="${t.shade}"/><rect x="354" y="285" width="36" height="6" rx="2" fill="${t.line}"/>`;
 }
 
-const roomProps = (t, lit, rig = false) => cobweb(t, !rig) + bulb(t) + missingPicture(t) + shelf(t) + cabinet(t) + boxes(t) + cat(t, lit, !rig) + plant(t);
+// The room. `tag` names the three objects that can be rummaged, so Rive can shake the unlit and lit copies together.
+const shift = (dx, body) => g(`translate(${dx} 0)`, body);
+const named = (tag, name, body) => (tag ? `<g id="${name}-${tag}">${body}</g>` : body);
+const room = (t, lit, tag = "") =>
+  wallAndFloor(t) + cobweb(t, !tag) + shift(55, bulb(t)) + missingPicture(t) + shelf(t) +
+  named(tag, "cabinet", cabinet(t)) + named(tag, "boxes", shift(-86, boxes(t) + cat(t, lit, !tag))) + named(tag, "plant", plant(t));
 
-// Where the searcher stands, and the beam that follows from the torch lens.
-const HERO = { x: 106, scale: 0.56, aim: -10 };
-const LENS = { x: 153, y: 266 };
-const BEAM = `M${LENS.x} ${LENS.y - 6} L390 118 L390 318 L262 318 L${LENS.x} ${LENS.y + 6} Z`;
-const POOL = `<ellipse cx="336" cy="330" rx="86" ry="15"/>`;
+function mouse() {
+  return `<ellipse cx="0" cy="0" rx="6" ry="3.500" fill="${C.creamShade}"/><circle cx="6" cy="-1" r="2.600" fill="${C.creamShade}"/><circle cx="7" cy="-3.500" r="1.500" fill="${C.blush}"/><circle cx="7.500" cy="-1.400" r="0.600" fill="${C.ink}"/><path d="M-6 0 q-6 0 -8 -4" stroke="${C.creamShade}" stroke-width="1"/>`;
+}
 
-function scene({ mode = "beam", find = "sock", mood = "smile" } = {}) {
-  const hero = g(`translate(${HERO.x} ${FLOOR}) scale(${HERO.scale})`, searcher({ aim: HERO.aim, mood }));
-  const found = find ? g(`translate(292 276) scale(0.56)`, FINDS[find](LIT)) + sparkle(288, 272, 5, C.beamCore) + sparkle(340, 284, 3.5, C.beamCore) + sparkle(322, 262, 2.6, C.beamCore) : "";
-  const mouse = `<circle cx="247" cy="313" r="0.900" fill="${C.beam}"/><circle cx="251" cy="313" r="0.900" fill="${C.beam}"/>`;
-  if (mode === "dark") return wallAndFloor(UNLIT) + roomProps(UNLIT, false) + mouse;
-  if (mode === "lit") return wallAndFloor(LIT) + roomProps(LIT, true);
-  const motes = [[196, 246, 1.3], [232, 228, 1], [268, 252, 1.5], [300, 204, 1.1], [336, 236, 1.3], [356, 180, 1], [372, 270, 1.4], [250, 290, 1], [318, 160, 0.9]]
-    .map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`)
-    .join("");
+// A beam is a cone from a point along the x axis. The same cone clips the lit room and draws the haze.
+const tan = (deg) => Math.tan((deg * Math.PI) / 180);
+const cone = (len, half, start = 0) => `M${start} ${(-Math.max(1.5, tan(half) * start)).toFixed(2)} L${len} ${(-tan(half) * len).toFixed(2)} L${len} ${(tan(half) * len).toFixed(2)} L${start} ${Math.max(1.5, tan(half) * start).toFixed(2)} Z`;
+const hazeGradient = (id, len, strength) =>
+  `<linearGradient id="hz-${id}" x1="0" y1="0" x2="${len}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beam}" stop-opacity="${strength}"/><stop offset="1" stop-color="${C.beam}" stop-opacity="0.04"/></linearGradient>`;
+
+const HERO = GEO.hero;
+const FLOOR_Y = GEO.floor;
+const B = GEO.beams;
+// Where each helper stands when the file is imported. The game moves them afterwards.
+const HELPER_X = { satellite: 110, detective: 30, intern: 140, crawler: 290, dog: 70 };
+const HELPER_AIM = { intern: -30, crawler: -150, detective: -15, satellite: 80 };
+const DRAW = { intern, crawler, detective, satellite, dog };
+const GLINT_START = [[40, 120], [96, 150], [70, 250], [150, 96], [238, 60], [300, 96], [352, 130], [330, 250], [262, 232], [120, 344], [300, 352], [28, 60], [180, 180], [340, 40]];
+const MOTES = [[196, 246, 1.3], [232, 228, 1], [268, 252, 1.5], [300, 204, 1.1], [336, 236, 1.3], [356, 180, 1], [372, 270, 1.4], [250, 290, 1], [318, 160, 0.9], [214, 300, 1.1], [352, 300, 1], [290, 120, 1.2], [60, 200, 1.2], [110, 110, 1], [150, 280, 1.3], [30, 300, 1], [90, 60, 1.1], [170, 150, 0.9]];
+
+// ───────────────────────── The scene as Rive imports it ─────────────────────────
+// Ids become layer names in Rive. Anything that moves sits in its own group, translated to its pivot,
+// with no rotation or scale of its own, so the game and the timelines start from clean values.
+function rigScene() {
+  const s = HERO.scale;
+  const hand = { x: HERO.x + HERO.handX, y: HERO.handY };
+  const mainCone = cone(B.main.length, B.main.half, 19);
+  const origin = (name) => ({ x: HELPER_X[name] + B[name].dx, y: B[name].oy });
+  const beamed = ["intern", "crawler", "detective", "satellite"];
+  const helper = (name) => {
+    const y = name === "dog" ? GEO.dog.y : B[name].y;
+    const hs = name === "dog" ? GEO.dog.scale : B[name].scale;
+    const flip = name === "crawler" ? -hs : hs;
+    const inner = `<g transform="scale(${flip} ${hs})">${DRAW[name](false)}</g>`;
+    return `<g id="helper-${name}" transform="translate(${HELPER_X[name]} ${y})">${name === "dog" ? `<g id="dog-flip">${inner}</g>` : inner}</g>`;
+  };
+  const ring = Array.from({ length: 6 }, (_, i) => sparkle(Math.cos((i * Math.PI) / 3) * 17, Math.sin((i * Math.PI) / 3) * 17, i % 2 ? 3 : 4.5, C.beamCore)).join("");
   return (
-    `<defs><clipPath id="beam"><path d="${BEAM}"/>${POOL}</clipPath>` +
-    `<linearGradient id="haze" x1="${LENS.x}" y1="0" x2="390" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beam}" stop-opacity="0.42"/><stop offset="1" stop-color="${C.beam}" stop-opacity="0.07"/></linearGradient></defs>` +
-    wallAndFloor(UNLIT) + roomProps(UNLIT, false) +
-    `<g clip-path="url(#beam)">${wallAndFloor(LIT) + roomProps(LIT, true)}</g>` +
-    `<path d="${BEAM}" fill="url(#haze)"/>` +
-    mouse + motes + found + `<ellipse cx="${HERO.x + 2}" cy="${FLOOR + 1}" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/>` + hero
+    `<defs><clipPath id="beam"><path id="beam-main" transform="translate(${hand.x} ${hand.y})" d="${mainCone}"/>` +
+    beamed.map((n) => `<path id="beam-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})" d="${cone(B[n].length, B[n].half)}"/>`).join("") +
+    `</clipPath>${hazeGradient("main", B.main.length / s, 0.42)}${beamed.map((n) => hazeGradient(n, B[n].length, 0.26)).join("")}</defs>` +
+    `<g id="room-dark">${room(UNLIT, false, "dark")}</g>` +
+    `<g id="room-lit" clip-path="url(#beam)">${room(LIT, true, "lit")}<g id="motes">${MOTES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`).join("")}</g></g>` +
+    `<g id="cat-eyes" transform="translate(138.250 212)"><ellipse cx="-3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/><ellipse cx="3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/></g>` +
+    `<g id="mouse-eyes" transform="translate(249 313)"><circle cx="-2" cy="0" r="0.900" fill="${C.beam}"/><circle cx="2" cy="0" r="0.900" fill="${C.beam}"/></g>` +
+    `<g id="spider" transform="translate(48 48)">${spiderOnThread(UNLIT, 0, 0)}</g>` +
+    beamed.map((n) => `<g id="haze-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})"><path d="${cone(B[n].length, B[n].half)}" fill="url(#hz-${n})"/></g>`).join("") +
+    Object.entries(FINDS).map(([name, draw]) => `<g id="find-${name}" transform="translate(${GEO.findSpot.x} ${GEO.findSpot.y})"><g transform="translate(-22.400 -43) scale(0.56)">${draw(LIT)}</g></g>`).join("") +
+    `<g id="sparkles" transform="translate(${GEO.findSpot.x} ${GEO.findSpot.y - 24})">${sparkle(-28, -18, 5, C.beamCore) + sparkle(28, -6, 3.5, C.beamCore) + sparkle(8, -30, 2.6, C.beamCore)}</g>` +
+    GEO.stashes.map((st, i) => `<g id="stash-${i}" transform="translate(${st.x} ${st.y})"><circle cx="0" cy="0" r="10" stroke="${C.beamCore}" stroke-opacity="0.55" stroke-width="1.200"/>${sparkle(0, 0, 6, C.beamCore)}</g>`).join("") +
+    GLINT_START.slice(0, GEO.glints).map(([x, y], i) => `<g id="glint-${i}" transform="translate(${x} ${y})">${sparkle(0, 0, 3.6, C.beamCore)}</g>`).join("") +
+    `<g id="mouse" transform="translate(-40 ${GEO.mouseY})">${mouse()}</g>` +
+    helper("satellite") + helper("detective") +
+    `<g id="hero" transform="translate(${HERO.x} ${FLOOR_Y})"><ellipse cx="0" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/><g id="hero-flip"><g id="hero-body"><g transform="scale(${s})">${searcher({ rig: cone(B.main.length / s, B.main.half, 34) })}</g></g></g></g>` +
+    helper("intern") + helper("crawler") + helper("dog") +
+    `<g id="burst" transform="translate(195 200)"><circle cx="0" cy="0" r="12" stroke="${C.beamCore}" stroke-width="1.500"/>${ring}</g>`
   );
 }
 
-// ───────────────────────── The scene as Rive imports it ─────────────────────────
-// Ids become layer names in Rive. Anything that animates sits in its own group, translated to its pivot,
-// so every key starts from a clean rotation and scale. The torch points straight ahead: Rive turns it.
-const PIVOT = { x: HERO.x + 50 * HERO.scale, y: FLOOR - 84 * HERO.scale };
-const FIND_SPOT = { x: 314, y: FLOOR };
-const HELPERS = [
-  ["satellite", satellite, 250, 72, 0.42],
-  ["detective", detective, 352, 372, 0.4],
-  ["intern", intern, 178, 372, 0.4],
-  ["crawler", crawler, 262, 374, 0.42],
-  ["dog", dog, 52, 374, 0.46],
-];
-const MOTES = [[196, 246, 1.3], [232, 228, 1], [268, 252, 1.5], [300, 204, 1.1], [336, 236, 1.3], [356, 180, 1], [372, 270, 1.4], [250, 290, 1], [318, 160, 0.9], [214, 300, 1.1], [352, 300, 1], [290, 120, 1.2]];
+// ───────────────────────── Review frames ─────────────────────────
+// Stills of the game for design review. They use the same room and beams as the rig, with everything posed by hand.
+const glint = (x, y, sz, opacity) => sparkle(x, y, sz, C.beamCore).replace("/>", ` fill-opacity="${opacity}"/>`);
+const plus = (x, y, text = "+1") => `<text x="${x}" y="${y}" font-family="Menlo, monospace" font-size="11" font-weight="700" fill="${C.beamCore}" text-anchor="middle">${text}</text>`;
+const tapRing = (x, y) => `<circle cx="${x}" cy="${y}" r="13" stroke="#FFFFFF" stroke-width="1.5" stroke-opacity="0.9"/><circle cx="${x}" cy="${y}" r="4" fill="#FFFFFF"/>`;
 
-function rigScene() {
-  const helper = ([name, draw, x, y, s]) => `<g id="helper-${name}" transform="translate(${x} ${y})"><g transform="scale(${s})">${draw()}</g></g>`;
-  const [back, ...front] = [HELPERS.slice(0, 2), ...HELPERS.slice(2)];
+function frame({ heroX = HERO.x, facing = 1, aim = -8, half = B.main.half, helpers = [], glints = [], pops = [], extra = "" }) {
+  const s = HERO.scale;
+  const angle = facing === 1 ? aim : 180 - aim;
+  const beams = [{ id: "main", x: heroX + facing * HERO.handX, y: HERO.handY, angle, len: B.main.length, half, start: 19, strength: 0.4 }];
+  const placed = helpers.map(([name, x, angleOf]) => {
+    const hs = name === "dog" ? GEO.dog.scale : B[name].scale;
+    const y = name === "dog" ? GEO.dog.y : B[name].y;
+    if (name !== "dog") beams.push({ id: name, x: x + B[name].dx, y: B[name].oy, angle: angleOf, len: B[name].length, half: B[name].half, start: 0, strength: 0.26 });
+    return g(`translate(${x} ${y}) scale(${name === "crawler" ? -hs : hs} ${hs})`, DRAW[name](false));
+  });
+  const place = (b) => `translate(${b.x.toFixed(1)} ${b.y.toFixed(1)}) rotate(${b.angle})`;
   return (
-    `<defs><clipPath id="beam"><path id="beamshape" transform="translate(${PIVOT.x} ${PIVOT.y})" d="M19 -6.500 L340 -135 L340 135 L19 6.500 Z"/></clipPath>` +
-    `<linearGradient id="haze" x1="34" y1="0" x2="607" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beam}" stop-opacity="0.42"/><stop offset="1" stop-color="${C.beam}" stop-opacity="0.07"/></linearGradient></defs>` +
-    `<g id="room-dark">${wallAndFloor(UNLIT) + roomProps(UNLIT, false, true)}</g>` +
-    `<g id="room-lit" clip-path="url(#beam)">${wallAndFloor(LIT) + roomProps(LIT, true, true)}<g id="motes">${MOTES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`).join("")}</g></g>` +
-    `<g id="cat-eyes" transform="translate(224.250 212)"><ellipse cx="-3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/><ellipse cx="3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/></g>` +
-    `<g id="mouse-eyes" transform="translate(249 313)"><circle cx="-2" cy="0" r="0.900" fill="${C.beam}"/><circle cx="2" cy="0" r="0.900" fill="${C.beam}"/></g>` +
-    `<g id="spider" transform="translate(48 48)">${spiderOnThread(UNLIT, 0, 0)}</g>` +
-    Object.entries(FINDS).map(([name, draw]) => `<g id="find-${name}" transform="translate(${FIND_SPOT.x} ${FIND_SPOT.y})"><g transform="translate(-22.400 -43) scale(0.56)">${draw(LIT)}</g></g>`).join("") +
-    `<g id="sparkles" transform="translate(${FIND_SPOT.x} ${FIND_SPOT.y - 24})">${sparkle(-28, -18, 5, C.beamCore) + sparkle(28, -6, 3.5, C.beamCore) + sparkle(8, -30, 2.6, C.beamCore)}</g>` +
-    back.map(helper).join("") +
-    `<g id="hero" transform="translate(${HERO.x} ${FLOOR})"><ellipse cx="2" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/><g id="hero-body"><g transform="scale(${HERO.scale})">${searcher({ rig: true })}</g></g></g>` +
-    front.map(helper).join("")
+    `<defs><clipPath id="beams">${beams.map((b) => `<path transform="${place(b)}" d="${cone(b.len, b.half, b.start)}"/>`).join("")}</clipPath>${beams.map((b) => hazeGradient(b.id, b.len, b.strength)).join("")}</defs>` +
+    room(UNLIT, false) + glints.map(([x, y]) => glint(x, y, 3.2, 0.4)).join("") +
+    `<g clip-path="url(#beams)">${room(LIT, true)}</g>` +
+    beams.map((b) => `<path transform="${place(b)}" d="${cone(b.len, b.half, b.start)}" fill="url(#hz-${b.id})"/>`).join("") +
+    pops.map(([x, y, text]) => sparkle(x, y + 8, 4.5, C.beamCore) + plus(x, y - 3, text)).join("") + extra + placed.join("") +
+    `<ellipse cx="${heroX}" cy="${FLOOR_Y + 1}" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/>` +
+    g(`translate(${heroX} ${FLOOR_Y}) scale(${facing * s} ${s})`, searcher({ aim, mood: pops.length ? "happy" : "smile" }))
   );
 }
 
 // ───────────────────────── Files ─────────────────────────
 const write = (name, content) => writeFileSync(out + name, content);
+const W_ = GEO.width, H_ = GEO.height;
 
-write("rive-scene.svg", svg(W, H, rigScene()));
+write("rive-scene.svg", svg(W_, H_, rigScene()));
 
-// Review renders.
-write("scene.svg", svg(W, H, scene()));
-write("scene-wow.svg", svg(W, H, scene({ mood: "wow", find: "keys" })));
-write("room-dark.svg", svg(W, H, scene({ mode: "dark" })));
-write("room-lit.svg", svg(W, H, scene({ mode: "lit" })));
+write("v2-waiting.svg", svg(W_, H_, frame({ aim: -6, glints: GLINT_START })));
+write("v2-tap.svg", svg(W_, H_, frame({
+  heroX: 176, facing: -1, aim: -38, glints: GLINT_START.filter(([x, y]) => !(x < 110 && y < 200)), pops: [[96, 150], [40, 120], [28, 60]],
+  extra: tapRing(60, 140),
+})));
+write("v2-party.svg", svg(W_, H_, frame({
+  heroX: 214, aim: 14, half: 22, glints: GLINT_START.filter(([x]) => x > 60), pops: [[330, 250, "+4"], [262, 232, "+2"]],
+  helpers: [["satellite", 96, 72], ["intern", 150, -128], ["crawler", 296, -146], ["detective", 30, -20], ["dog", 66]],
+  extra: g("translate(268 312)", mouse()) + plus(268, 300, "!"),
+})));
 
 const stand = (body, w = 180, h = 230, cx = 80) => svg(w, h, g(`translate(${cx} ${h - 14})`, body));
-write("searcher.svg", stand(searcher()));
-write("searcher-up.svg", stand(searcher({ aim: -42, mood: "wow" })));
-write("searcher-happy.svg", stand(searcher({ aim: 16, mood: "happy" })));
-write("intern.svg", stand(intern(), 160, 190, 66));
-write("crawler.svg", stand(crawler(), 160, 110, 72));
-write("dog.svg", stand(dog(), 170, 100, 74));
-write("detective.svg", stand(detective(), 150, 220, 62));
-write("satellite.svg", svg(190, 150, g("translate(95 58)", satellite())));
-for (const [name, draw] of Object.entries(FINDS)) {
-  write(`find-${name}.svg`, svg(80, 80, draw(LIT)));
-  write(`find-${name}-dark.svg`, svg(80, 80, draw(UNLIT)));
-}
+for (const [name, draw] of Object.entries(FINDS)) write(`find-${name}.svg`, svg(80, 80, draw(LIT)));
 const cast = [[intern(), 80, 200], [crawler(), 250, 200], [dog(), 430, 200], [detective(), 610, 200]];
 write("sheet-helpers.svg", svg(900, 230, `<rect width="900" height="230" fill="#0A0A0C"/>` + cast.map(([b, x, y]) => g(`translate(${x} ${y})`, b)).join("") + g("translate(790 90)", satellite())));
-const names = Object.keys(FINDS);
-write("sheet-finds.svg", svg(800, 110, `<rect width="800" height="110" fill="${LIT.wall}"/>` + names.map((n, i) => g(`translate(${10 + i * 100} 15)`, FINDS[n](LIT))).join("")));
+write("sheet-finds.svg", svg(800, 110, `<rect width="800" height="110" fill="${LIT.wall}"/>` + Object.keys(FINDS).map((n, i) => g(`translate(${10 + i * 100} 15)`, FINDS[n](LIT))).join("")));
 write("sheet-poses.svg", svg(600, 240, `<rect width="600" height="240" fill="#0A0A0C"/>` + g("translate(90 226)", searcher()) + g("translate(290 226)", searcher({ aim: -42, mood: "wow" })) + g("translate(490 226)", searcher({ aim: 16, mood: "happy" }))));
+write("searcher.svg", stand(searcher()));
 console.log("wrote", out);

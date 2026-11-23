@@ -1,23 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { STORAGE_KEY } from "./data";
-import { catchUp, hire, restore, tap, tick } from "./game";
-import type { GameState, HelperId } from "./types";
+import { AWAY_LIMIT_SECONDS, STORAGE_KEY } from "./data";
+import { catchUp, earn, findsSoFar, hire, newGame, perSecond, restore, upgrade } from "./game";
+import type { Economy, HelperId, Point, UpgradeId, World, WorldEvent } from "./types";
+import { createWorld, stepWorld, tapWorld } from "./world";
 
-const TICK_MS = 100;
+const HUD_MS = 100;
 const SAVE_MS = 2000;
+// The room never advances more than this in one frame, so a slow frame can't make a beam skip over a glint.
+const MAX_STEP = 0.05;
 
-function save(state: GameState) {
+export type Painter = (world: World, state: Economy, events: WorldEvent[]) => void;
+
+function save(state: Economy) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, savedAt: Date.now() }));
   } catch {}
 }
 
-// The game state, or `null` until the saved game has loaded. It ticks ten times a second and saves every two seconds.
+// Runs the game. The room and the clue count advance every animation frame in refs, the scene is painted from them,
+// and the count is copied into React state ten times a second for the interface.
 export function useGame() {
-  const [state, setState] = useState<GameState | null>(null);
-  const latest = useRef<GameState | null>(null);
+  const [state, setState] = useState<Economy>(() => newGame(0));
+  const game = useRef<{ state: Economy; world: World; loaded: boolean; events: WorldEvent[] } | null>(null);
+  const painter = useRef<Painter | null>(null);
 
   useEffect(() => {
     let stored: unknown = null;
@@ -25,35 +32,61 @@ export function useGame() {
       stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null");
     } catch {}
     const now = Date.now();
-    // The saved game only exists in the browser, so it is applied after mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState(catchUp(restore(stored, now), now));
-  }, []);
+    const current = { state: catchUp(restore(stored, now), now), world: createWorld(Math.random), loaded: true, events: [] as WorldEvent[] };
+    game.current = current;
 
-  useEffect(() => {
-    latest.current = state;
-  }, [state]);
-
-  useEffect(() => {
     let last = performance.now();
-    const ticker = window.setInterval(() => {
-      const now = performance.now();
-      const seconds = (now - last) / 1000;
-      last = now;
-      setState((s) => (s ? tick(s, seconds) : s));
-    }, TICK_MS);
-    const flush = () => latest.current && save(latest.current);
-    const saver = window.setInterval(flush, SAVE_MS);
+    let shown = 0;
+    let saved = last;
+    let frame = 0;
+    const tick = (time: number) => {
+      const elapsed = Math.max(0, (time - last) / 1000);
+      last = time;
+      // Helpers earn for all the time that passed, including while the tab was hidden. The room only moves a frame's worth.
+      const idle = earn(current.state, perSecond(current.state) * Math.min(elapsed, AWAY_LIMIT_SECONDS));
+      const step = stepWorld(current.world, idle, Math.min(elapsed, MAX_STEP), Math.random);
+      const before = findsSoFar(idle.earned).length;
+      current.state = earn(idle, step.gained);
+      current.world = step.world;
+      painter.current?.(current.world, current.state, [...current.events, ...step.events]);
+      current.events = [];
+      if (time - shown >= HUD_MS || findsSoFar(current.state.earned).length !== before) {
+        shown = time;
+        setState(current.state);
+      }
+      if (time - saved >= SAVE_MS) {
+        saved = time;
+        save(current.state);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    const flush = () => save(current.state);
     window.addEventListener("pagehide", flush);
     return () => {
-      window.clearInterval(ticker);
-      window.clearInterval(saver);
+      cancelAnimationFrame(frame);
       window.removeEventListener("pagehide", flush);
       flush();
     };
   }, []);
 
-  const search = useCallback(() => setState((s) => (s ? tap(s) : s)), []);
-  const hireHelper = useCallback((id: HelperId) => setState((s) => (s ? hire(s, id) : s)), []);
-  return { state, search, hire: hireHelper };
+  const change = useCallback((next: (state: Economy) => Economy) => {
+    if (!game.current) return;
+    game.current.state = next(game.current.state);
+    setState(game.current.state);
+  }, []);
+
+  const tap = useCallback((point: Point) => {
+    if (!game.current) return;
+    game.current.world = tapWorld(game.current.world, point);
+    game.current.events.push({ type: "tap" });
+  }, []);
+  const hireHelper = useCallback((id: HelperId) => change((s) => hire(s, id)), [change]);
+  const buyUpgrade = useCallback((id: UpgradeId) => change((s) => upgrade(s, id)), [change]);
+  // The scene registers how to draw a frame once its Rive file has loaded.
+  const setPainter = useCallback((paint: Painter | null) => {
+    painter.current = paint;
+  }, []);
+
+  return { state, tap, hire: hireHelper, upgrade: buyUpgrade, setPainter };
 }

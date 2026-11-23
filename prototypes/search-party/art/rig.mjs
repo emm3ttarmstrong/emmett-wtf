@@ -1,8 +1,12 @@
 // Rigs the imported scene inside Rive: pivots, view model binds, timelines and the state machine.
-// Run stages in order against an open Rive Early Access file: node rig.mjs pivots | binds | ...
-import { cmd, tool } from "./rive-client.mjs";
+// Run against an open Rive Early Access file that already has the "Game" view model:
+//   node rig.mjs import pivots model binds timelines machine names export
+import { readFileSync } from "node:fs";
+import { cmd, exportRiv, tool, uploadSvg } from "./rive-client.mjs";
 
-export const K = { x: 13, y: 14, r: 15, sx: 16, sy: 17, opacity: 18, parent: 5, worldX: 808, worldY: 809 };
+const GEO = JSON.parse(readFileSync(new URL("../geometry.json", import.meta.url), "utf8"));
+
+export const K = { x: 13, y: 14, r: 15, sx: 16, sy: 17, opacity: 18, parent: 5 };
 export const VM = "Game";
 
 export async function idOf(name, type = "Node") {
@@ -23,72 +27,162 @@ async function childrenOf(id) {
   return objects.find((o) => o.id === id).children ?? [];
 }
 
-// The product of the scales of a node's ancestors, so a distance on the artboard converts into the node's parent space.
-async function parentScale(id) {
-  let scale = 1;
-  let parent = (await values(id, [K.parent]))[K.parent];
-  while (parent) {
-    const v = await values(parent, [K.sx, K.parent]);
-    if (typeof v[K.sx] !== "number") break;
-    scale *= v[K.sx] / 100;
-    parent = v[K.parent];
-  }
-  return scale;
+// A 2D transform as [a, b, c, d, tx, ty]. Rive's own computed world values are only filled in once the editor has
+// drawn a frame, which it may not have done while in the background, so world positions are worked out here instead.
+const IDENTITY = [1, 0, 0, 1, 0, 0];
+const multiply = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0] * n[2] + m[2] * n[3], m[1] * n[2] + m[3] * n[3], m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
+const local = (v) => {
+  const r = (v[K.r] * Math.PI) / 180;
+  const sx = v[K.sx] / 100;
+  const sy = v[K.sy] / 100;
+  return [Math.cos(r) * sx, Math.sin(r) * sx, -Math.sin(r) * sy, Math.cos(r) * sy, v[K.x], v[K.y]];
+};
+// Turns a distance in world space into the space a transform maps from.
+const unmap = (m, dx, dy) => {
+  const det = m[0] * m[3] - m[1] * m[2];
+  return [(m[3] * dx - m[2] * dy) / det, (-m[1] * dx + m[0] * dy) / det];
+};
+
+async function transformOf(id) {
+  const v = await values(id, [K.x, K.y, K.r, K.sx, K.sy, K.parent]);
+  return typeof v[K.x] === "number" && typeof v[K.sx] === "number" ? { matrix: local(v), parent: v[K.parent], v } : null;
+}
+
+// The transform from a node's parent space to the artboard.
+async function parentWorld(parent) {
+  const chain = [];
+  for (let t = parent && (await transformOf(parent)); t; t = t.parent && (await transformOf(t.parent))) chain.push(t.matrix);
+  return chain.reduceRight((m, n) => multiply(m, n), IDENTITY);
 }
 
 // Rive puts an imported group's origin at the centre of its bounding box. This moves the origin to a point on the
 // artboard and shifts the children back by the same amount, so nothing moves on screen but rotation and scale pivot there.
 export async function repivot(name, worldX, worldY) {
-  const id = await idOf(name);
-  const now = await values(id, [K.x, K.y, K.sx, K.worldX, K.worldY]);
-  const outer = await parentScale(id);
-  const dx = (worldX - now[K.worldX]) / outer;
-  const dy = (worldY - now[K.worldY]) / outer;
-  const inner = now[K.sx] / 100;
-  const update = { [id]: { [K.x]: now[K.x] + dx, [K.y]: now[K.y] + dy } };
+  const id = await idOf(name, null);
+  const node = await transformOf(id);
+  const outer = await parentWorld(node.parent);
+  const world = multiply(outer, node.matrix);
+  const [dx, dy] = unmap(outer, worldX - world[4], worldY - world[5]);
+  const [cx, cy] = unmap(world, worldX - world[4], worldY - world[5]);
+  const update = { [id]: { [K.x]: node.v[K.x] + dx, [K.y]: node.v[K.y] + dy } };
   for (const child of await childrenOf(id)) {
     const c = await values(child, [K.x, K.y]);
     if (typeof c[K.x] !== "number") continue;
-    update[child] = { [K.x]: c[K.x] - dx / inner, [K.y]: c[K.y] - dy / inner };
+    update[child] = { [K.x]: c[K.x] - cx, [K.y]: c[K.y] - cy };
   }
   await set(update);
   return { name, id, moved: [Number(dx.toFixed(2)), Number(dy.toFixed(2))], children: Object.keys(update).length - 1 };
 }
 
-const HERO = { x: 106, y: 318, scale: 0.56 };
-const PIVOT = { x: HERO.x + 50 * HERO.scale, y: HERO.y - 84 * HERO.scale };
-const FIND = { x: 314, y: 318 };
+const HERO = GEO.hero;
+const HAND = { x: HERO.x + HERO.handX, y: HERO.handY };
 export const FINDS = ["sock", "semicolon", "remote", "keys", "socket", "plot", "atlantis", "note"];
-export const HELPERS = { satellite: [250, 72], detective: [352, 372], intern: [178, 372], crawler: [262, 374], dog: [52, 374] };
+// Where the art generator places each helper. `crawler` is the robot.
+const HELPER_X = { satellite: 110, detective: 30, intern: 140, crawler: 290, dog: 70 };
+const BEAMED = ["intern", "crawler", "detective", "satellite"];
+const HELPERS = ["satellite", "detective", "intern", "crawler", "dog"];
+const SHAKES = GEO.stashes.map((s) => s.object);
+const SHAKE_PIVOT = { cabinet: 43, boxes: 128, plant: 372 };
+const helperY = (n) => (n === "dog" ? GEO.dog.y : GEO.beams[n].y);
+
+const P = (name, propertyType) => ({ name, propertyType });
+// Every view model property the game drives. Numbers unless noted.
+const PROPERTIES = [
+  P("heroX", "number"), P("facing", "number"), P("beamX", "number"), P("beamAngle", "number"), P("beamWide", "number"), P("walking", "boolean"),
+  P("burst", "trigger"), P("burstX", "number"), P("burstY", "number"), P("mouseX", "number"), P("mouseDir", "number"), P("dogX", "number"), P("dogDir", "number"),
+  P("internX", "number"), P("internBeamX", "number"), P("internAim", "number"), P("crawlerX", "number"), P("crawlerBeamX", "number"), P("crawlerAim", "number"),
+  P("detectiveBeamX", "number"), P("detectiveAim", "number"), P("satelliteX", "number"), P("satelliteBeamX", "number"), P("satelliteAim", "number"),
+  ...Array.from({ length: GEO.glints }, (_, i) => [P(`g${i}x`, "number"), P(`g${i}y`, "number"), P(`g${i}s`, "number")]).flat(),
+  ...GEO.stashes.flatMap((_, i) => [P(`stash${i}`, "number"), P(`shake${i}`, "trigger")]),
+];
+
+async function model() {
+  return (await cmd("viewmodel_editor", "listViewModels")).viewModels.find((m) => m.name === VM);
+}
 
 const stages = {
+  // Replaces every artboard with a fresh Scene and places the generated SVG on it.
+  async import() {
+    for (const board of (await tool("list_artboards")).artboards) await tool("delete_objects", { objectIds: [board.id] });
+    await cmd("open_file_editor", "createArtboard", [{ name: "Scene", width: GEO.width, height: GEO.height }]);
+    const artboard = (await tool("list_artboards")).artboards.find((a) => a.name === "Scene").id;
+    const asset = await uploadSvg(new URL("./svg/rive-scene.svg", import.meta.url).pathname, "scene");
+    return cmd("assets_tool", "addSvgInstance", { assetId: asset.id, parentId: artboard, name: "scene", x: 0, y: 0 });
+  },
+
   async pivots() {
     const done = [];
-    done.push(await repivot("hero", HERO.x, HERO.y));
-    done.push(await repivot("hero-body", HERO.x, HERO.y));
-    done.push(await repivot("torch", PIVOT.x, PIVOT.y));
-    done.push(await repivot("beamshape", PIVOT.x, PIVOT.y));
-    done.push(await repivot("blink", HERO.x + 14.5 * HERO.scale, HERO.y - 143 * HERO.scale));
-    done.push(await repivot("spider", 48, 48));
-    done.push(await repivot("sparkles", FIND.x, FIND.y - 24));
-    for (const name of FINDS) done.push(await repivot(`find-${name}`, FIND.x, FIND.y));
-    for (const [name, [x, y]] of Object.entries(HELPERS)) done.push(await repivot(`helper-${name}`, x, y));
-    return done;
+    const at = async (name, x, y) => done.push(await repivot(name, x, y));
+    for (const name of ["hero", "hero-flip", "hero-body"]) await at(name, HERO.x, GEO.floor);
+    await at("torch", HAND.x, HAND.y);
+    await at("beam-main", HAND.x, HAND.y);
+    await at("leg-l", HERO.x - 14.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
+    await at("leg-r", HERO.x + 15.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
+    await at("blink", HERO.x + 14.5 * HERO.scale, GEO.floor - 143 * HERO.scale);
+    await at("spider", 48, 48);
+    await at("sparkles", GEO.findSpot.x, GEO.findSpot.y - 24);
+    for (const name of FINDS) await at(`find-${name}`, GEO.findSpot.x, GEO.findSpot.y);
+    for (const name of HELPERS) await at(`helper-${name}`, HELPER_X[name], helperY(name));
+    await at("dog-flip", HELPER_X.dog, GEO.dog.y);
+    for (const name of BEAMED) {
+      const b = GEO.beams[name];
+      await at(`beam-${name}`, HELPER_X[name] + b.dx, b.oy);
+      await at(`haze-${name}`, HELPER_X[name] + b.dx, b.oy);
+    }
+    await at("mouse", -40, GEO.mouseY);
+    await at("burst", 195, 200);
+    for (const name of SHAKES) for (const tone of ["dark", "lit"]) await at(`${name}-${tone}`, SHAKE_PIVOT[name], GEO.floor);
+    return done.map((d) => `${d.name} ${d.moved}`);
+  },
+
+  async model() {
+    const m = await model();
+    const have = new Set(m.viewModelProperties.map((p) => p.name));
+    const missing = PROPERTIES.filter((p) => !have.has(p.name));
+    if (missing.length) await cmd("viewmodel_editor", "addProperties", { viewModels: [{ viewModelId: m.id, viewModelProperties: missing }] });
+    const artboard = (await tool("list_artboards")).artboards.find((a) => a.name === "Scene").id;
+    await cmd("viewmodel_editor", "bindViewModelToArtboard", { artboardId: artboard, viewModelId: m.id });
+    return { added: missing.length };
   },
 
   async binds() {
-    const models = (await cmd("viewmodel_editor", "listViewModels")).viewModels;
-    const model = models.find((m) => m.name === VM);
-    const aim = model.viewModelProperties.find((p) => p.name === "aim").id;
-    const artboard = (await tool("list_artboards")).artboards.find((a) => a.name === "Scene").id;
-    await cmd("viewmodel_editor", "bindViewModelToArtboard", { artboardId: artboard, viewModelId: model.id });
-    return cmd("viewmodel_editor", "databind", {
-      viewModelId: model.id,
-      bindings: [
-        { objectId: await idOf("torch"), propertyKey: K.r, viewModelPropertyId: aim },
-        { objectId: await idOf("beamshape"), propertyKey: K.r, viewModelPropertyId: aim },
-      ],
-    });
+    const m = await model();
+    const prop = (name) => m.viewModelProperties.find((p) => p.name === name).id;
+    const bindings = [];
+    const bind = async (object, key, name, type = "Node") => bindings.push({ objectId: await idOf(object, type), propertyKey: key, viewModelPropertyId: prop(name) });
+    await bind("hero", K.x, "heroX");
+    await bind("hero-flip", K.sx, "facing");
+    await bind("torch", K.r, "aim");
+    await bind("haze", K.sy, "beamWide", "Shape");
+    await bind("beam-main", K.x, "beamX");
+    await bind("beam-main", K.r, "beamAngle");
+    await bind("beam-main", K.sy, "beamWide");
+    for (const name of BEAMED) {
+      for (const part of ["beam", "haze"]) {
+        await bind(`${part}-${name}`, K.x, `${name}BeamX`);
+        await bind(`${part}-${name}`, K.r, `${name}Aim`);
+      }
+      // The detective stands still, so only the light is bound.
+      if (name !== "detective") await bind(`helper-${name}`, K.x, `${name}X`);
+    }
+    await bind("helper-dog", K.x, "dogX");
+    await bind("dog-flip", K.sx, "dogDir");
+    for (let i = 0; i < GEO.glints; i++) {
+      await bind(`glint-${i}`, K.x, `g${i}x`);
+      await bind(`glint-${i}`, K.y, `g${i}y`);
+      await bind(`glint-${i}`, K.sx, `g${i}s`);
+      await bind(`glint-${i}`, K.sy, `g${i}s`);
+    }
+    for (let i = 0; i < GEO.stashes.length; i++) {
+      await bind(`stash-${i}`, K.sx, `stash${i}`);
+      await bind(`stash-${i}`, K.sy, `stash${i}`);
+    }
+    await bind("burst", K.x, "burstX");
+    await bind("burst", K.y, "burstY");
+    await bind("mouse", K.x, "mouseX");
+    await bind("mouse", K.sx, "mouseDir");
+    for (let i = 0; i < bindings.length; i += 30) await cmd("viewmodel_editor", "databind", { viewModelId: m.id, bindings: bindings.slice(i, i + 30) });
+    return { bound: bindings.length };
   },
 };
 
@@ -116,45 +210,47 @@ async function timeline(name, frames, loop, keys) {
     ...(typeof curve === "string" ? { interpolationType: curve } : { interpolationType: "cubic", cubicParams: curve }),
   }));
   for (let i = 0; i < add.length; i += 40) await cmd("animation_editor", "modifyKeyFrames", { animationId: id, add: add.slice(i, i + 40) });
-  return { name, id, keys: add.length };
+  return `${name} ${add.length}`;
 }
 
 stages.timelines = async () => {
   const id = {};
-  for (const n of ["hero", "hero-body", "blink", "face-smile", "face-wow", "face-happy", "sparkles", "cat-eyes", "spider", "motes", "mouse-eyes"]) id[n] = await idOf(n);
-  for (const n of FINDS) id[`find-${n}`] = await idOf(`find-${n}`);
-  for (const n of Object.keys(HELPERS)) id[`helper-${n}`] = await idOf(`helper-${n}`);
+  const nodes = ["hero", "hero-body", "leg-l", "leg-r", "blink", "face-smile", "face-wow", "face-happy", "sparkles", "cat-eyes", "spider", "motes", "mouse-eyes", "beam-main", "burst",
+    ...FINDS.map((n) => `find-${n}`), ...HELPERS.map((n) => `helper-${n}`), ...BEAMED.map((n) => `haze-${n}`), ...SHAKES.flatMap((n) => [`${n}-dark`, `${n}-lit`])];
+  for (const n of nodes) id[n] = await idOf(n);
   const base = async (n, key) => (await values(id[n], [key]))[key];
   const heroY = await base("hero", K.y);
+  const beamY = await base("beam-main", K.y);
+  const bodyY = await base("hero-body", K.y);
   const motesY = await base("motes", K.y);
-  const satX = await base("helper-satellite", K.x);
-  const crawlX = await base("helper-crawler", K.x);
   const done = [];
 
-  const ambient = await animationId("ambient");
-  if (!ambient) await cmd("animation_editor", "renameAnimations", { animations: [{ animationId: await animationId("Timeline 1"), name: "ambient" }] });
+  if (!(await animationId("ambient"))) await cmd("animation_editor", "renameAnimations", { animations: [{ animationId: await animationId("Timeline 1"), name: "ambient" }] });
   done.push(await timeline("ambient", 240, true, [
     [id.blink, K.sy, 0, 100, "hold"], [id.blink, K.sy, 150, 100, "linear"], [id.blink, K.sy, 155, 8, "linear"], [id.blink, K.sy, 160, 100, "hold"],
     [id["hero-body"], K.sy, 0, 100], [id["hero-body"], K.sy, 120, 101.6], [id["hero-body"], K.sy, 240, 100],
     [id.spider, K.r, 0, -7], [id.spider, K.r, 120, 7], [id.spider, K.r, 240, -7],
     [id["cat-eyes"], K.sy, 0, 100, "hold"], [id["cat-eyes"], K.sy, 58, 100, "linear"], [id["cat-eyes"], K.sy, 63, 10, "linear"], [id["cat-eyes"], K.sy, 68, 100, "hold"],
     [id.motes, K.y, 0, motesY], [id.motes, K.y, 120, motesY - 6], [id.motes, K.y, 240, motesY],
-    [id["helper-satellite"], K.x, 0, satX], [id["helper-satellite"], K.x, 120, satX + 12], [id["helper-satellite"], K.x, 240, satX],
-    [id["helper-crawler"], K.x, 0, crawlX], [id["helper-crawler"], K.x, 60, crawlX + 5], [id["helper-crawler"], K.x, 180, crawlX - 5], [id["helper-crawler"], K.x, 240, crawlX],
     [id["mouse-eyes"], K.opacity, 0, 100, "hold"], [id["mouse-eyes"], K.opacity, 200, 0, "hold"], [id["mouse-eyes"], K.opacity, 208, 100, "hold"],
   ]));
 
-  const faces = (smile, wow, happy) => [[id["face-smile"], K.opacity, 0, smile, "hold"], [id["face-wow"], K.opacity, 0, wow, "hold"], [id["face-happy"], K.opacity, 0, happy, "hold"]];
   // The beam's clip shape lives outside the hero, so every hop is keyed on both to keep the light on the torch.
-  const beam = await idOf("beamshape");
-  const beamY = (await values(beam, [K.y]))[K.y];
-  const hop = (...steps) => steps.flatMap(([frame, lift, curve]) => [[id.hero, K.y, frame, heroY - lift, curve], [beam, K.y, frame, beamY - lift, curve]]);
+  const faces = (smile, wow, happy) => [[id["face-smile"], K.opacity, 0, smile, "hold"], [id["face-wow"], K.opacity, 0, wow, "hold"], [id["face-happy"], K.opacity, 0, happy, "hold"]];
+  const hop = (...steps) => steps.flatMap(([frame, lift, curve]) => [[id.hero, K.y, frame, heroY - lift, curve], [id["beam-main"], K.y, frame, beamY - lift, curve]]);
   done.push(await timeline("face-smile", 1, false, [...faces(100, 0, 0), ...hop([0, 0, "hold"])]));
   done.push(await timeline("face-wow", 36, false, [...faces(0, 100, 0), ...hop([0, 0, OUT], [8, 10, SMOOTH], [18, 0, "hold"])]));
   done.push(await timeline("face-happy", 90, false, [...faces(0, 0, 100), ...hop([0, 0, OUT], [9, 6, SMOOTH], [18, 0, OUT], [27, 6, SMOOTH], [36, 0, "hold"])]));
 
   done.push(await timeline("tap-rest", 1, false, [[id["hero-body"], K.sx, 0, 100, "hold"]]));
   done.push(await timeline("tap-squash", 14, false, [[id["hero-body"], K.sx, 0, 100, OUT], [id["hero-body"], K.sx, 4, 106, OUT], [id["hero-body"], K.sx, 14, 100, "hold"]]));
+
+  done.push(await timeline("walk-rest", 1, false, [[id["leg-l"], K.r, 0, 0, "hold"], [id["leg-r"], K.r, 0, 0, "hold"], [id["hero-body"], K.y, 0, bodyY, "hold"]]));
+  done.push(await timeline("walk", 24, true, [
+    [id["leg-l"], K.r, 0, 24], [id["leg-l"], K.r, 12, -24], [id["leg-l"], K.r, 24, 24],
+    [id["leg-r"], K.r, 0, -24], [id["leg-r"], K.r, 12, 24], [id["leg-r"], K.r, 24, -24],
+    [id["hero-body"], K.y, 0, bodyY], [id["hero-body"], K.y, 6, bodyY - 2.5], [id["hero-body"], K.y, 12, bodyY], [id["hero-body"], K.y, 18, bodyY - 2.5], [id["hero-body"], K.y, 24, bodyY],
+  ]));
 
   for (let i = 0; i <= FINDS.length; i++) {
     const keys = FINDS.map((n, j) => [id[`find-${n}`], K.opacity, 0, j + 1 === i ? 100 : 0, "hold"]);
@@ -168,14 +264,28 @@ stages.timelines = async () => {
     done.push(await timeline(`find-${i}`, 30, false, keys));
   }
 
-  for (const n of Object.keys(HELPERS)) {
+  for (const n of HELPERS) {
     const h = id[`helper-${n}`];
-    done.push(await timeline(`${n}-hidden`, 1, false, [[h, K.opacity, 0, 0, "hold"]]));
+    const haze = id[`haze-${n}`];
+    done.push(await timeline(`${n}-hidden`, 1, false, [[h, K.opacity, 0, 0, "hold"], ...(haze ? [[haze, K.opacity, 0, 0, "hold"]] : [])]));
     done.push(await timeline(`${n}-in`, 24, false, [
       [h, K.opacity, 0, 0, "linear"], [h, K.opacity, 8, 100, "hold"],
       [h, K.sx, 0, 60, OUT], [h, K.sx, 12, 108, SMOOTH], [h, K.sx, 20, 100, "hold"],
       [h, K.sy, 0, 60, OUT], [h, K.sy, 12, 108, SMOOTH], [h, K.sy, 20, 100, "hold"],
+      ...(haze ? [[haze, K.opacity, 0, 0, "linear"], [haze, K.opacity, 20, 100, "hold"]] : []),
     ]));
+  }
+
+  done.push(await timeline("burst-rest", 1, false, [[id.burst, K.opacity, 0, 0, "hold"]]));
+  done.push(await timeline("burst-go", 26, false, [
+    [id.burst, K.opacity, 0, 100, "linear"], [id.burst, K.opacity, 10, 100, "linear"], [id.burst, K.opacity, 24, 0, "hold"],
+    [id.burst, K.sx, 0, 30, OUT], [id.burst, K.sx, 24, 140, "hold"], [id.burst, K.sy, 0, 30, OUT], [id.burst, K.sy, 24, 140, "hold"],
+  ]));
+
+  for (const [i, n] of SHAKES.entries()) {
+    const both = [id[`${n}-dark`], id[`${n}-lit`]];
+    done.push(await timeline(`shake-${i}-rest`, 1, false, both.map((o) => [o, K.r, 0, 0, "hold"])));
+    done.push(await timeline(`shake-${i}-go`, 22, false, both.flatMap((o) => [[o, K.r, 0, 0, OUT], [o, K.r, 4, -4, SMOOTH], [o, K.r, 9, 4, SMOOTH], [o, K.r, 14, -2, SMOOTH], [o, K.r, 20, 0, "hold"]])));
   }
   return done;
 };
@@ -187,16 +297,21 @@ const ENTRY = "{Entry State}";
 const ANY = "{Any State}";
 
 stages.machine = async () => {
-  const model = (await cmd("viewmodel_editor", "listViewModels")).viewModels.find((m) => m.name === VM);
-  const prop = (name) => model.viewModelProperties.find((p) => p.name === name).id;
+  const m = await model();
+  const prop = (name) => m.viewModelProperties.find((p) => p.name === name).id;
   const machine = (await cmd("animation_editor", "queryStateMachine")).stateMachineId;
 
   const state = (name) => ({ name, linearAnimationName: name });
+  const oneShot = (name, rest, go) => ({ name, states: [state(rest), state(go)], otherTransitions: [[ENTRY, rest], [ANY, go], [go, rest]] });
+  const toggle = (name, off, on) => ({ name, states: [state(off), state(on)], otherTransitions: [[ENTRY, off], [off, on], [on, off]] });
   const layers = [
     { name: "Mood", states: ["face-smile", "face-wow", "face-happy"].map(state), otherTransitions: [[ENTRY, "face-smile"], ["face-smile", "face-wow"], ["face-wow", "face-happy"], ["face-happy", "face-smile"]] },
-    { name: "Tap", states: ["tap-rest", "tap-squash"].map(state), otherTransitions: [[ENTRY, "tap-rest"], [ANY, "tap-squash"], ["tap-squash", "tap-rest"]] },
+    oneShot("Tap", "tap-rest", "tap-squash"),
+    toggle("Walk", "walk-rest", "walk"),
     { name: "Find", states: Array.from({ length: FINDS.length + 1 }, (_, i) => state(`find-${i}`)), otherTransitions: [[ENTRY, "find-0"], ...Array.from({ length: FINDS.length + 1 }, (_, i) => [ANY, `find-${i}`])] },
-    ...Object.keys(HELPERS).map((n) => ({ name: n, states: [state(`${n}-hidden`), state(`${n}-in`)], otherTransitions: [[ENTRY, `${n}-hidden`], [`${n}-hidden`, `${n}-in`], [`${n}-in`, `${n}-hidden`]] })),
+    ...HELPERS.map((n) => toggle(n, `${n}-hidden`, `${n}-in`)),
+    oneShot("Burst", "burst-rest", "burst-go"),
+    ...SHAKES.map((_, i) => oneShot(`Shake ${i}`, `shake-${i}-rest`, `shake-${i}-go`)),
   ].map((l) => ({ ...l, otherTransitions: l.otherTransitions.map(([from, to]) => ({ from, to })) }));
   await cmd("animation_editor", "createStateMachineLayers", { stateMachineId: machine, layers });
 
@@ -213,6 +328,10 @@ stages.machine = async () => {
       if (from === "entry") continue;
       if (to === "face-wow") when(t.id, "found");
       else if (to === "tap-squash") when(t.id, "tap");
+      else if (to === "burst-go") when(t.id, "burst");
+      else if (/^shake-\d-go$/.test(to)) when(t.id, `shake${to[6]}`);
+      else if (to === "walk") when(t.id, "walking", "equal", true);
+      else if (to === "walk-rest") when(t.id, "walking", "equal", false);
       else if (from === "any" && to.startsWith("find-")) when(t.id, "find", "equal", Number(to.slice(5)));
       else if (to.endsWith("-in")) when(t.id, to.slice(0, -3), "equal", true);
       else if (to.endsWith("-hidden")) when(t.id, to.slice(0, -7), "equal", false);
@@ -221,13 +340,15 @@ stages.machine = async () => {
   }
   await cmd("animation_editor", "createConditions", { transitions: conditions });
   await set(exits);
-  return { layers: built.layers.map((l) => `${l.layerName}: ${l.states.length} states, ${l.transitions.length} transitions`), conditions: conditions.length, exits: Object.keys(exits).length };
+  return { layers: built.layers.length, conditions: conditions.length, exits: Object.keys(exits).length };
 };
 
 stages.names = async () => {
   const built = await cmd("animation_editor", "queryStateMachine");
   return tool("rename_objects", { renames: [{ id: built.stateMachineId, name: "Game" }, { id: built.layers[0].layerId, name: "Ambient" }] });
 };
+
+stages.export = async () => exportRiv(new URL("../search-party.riv", import.meta.url).pathname);
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   for (const stage of process.argv.slice(2)) console.log(stage, JSON.stringify(await stages[stage]()));
