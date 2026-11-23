@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The Docker image runs the standalone server; local builds keep `next start` working for the thumbnail script.
+  output: process.env.STANDALONE === "1" ? "standalone" : undefined,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // shadcn's files, kept as installed:
+    "components/ui/**",
+    "hooks/use-mobile.ts",
+    "hooks/use-highlighted-code.ts",
+    "lib/highlighter.tsx",
   ]),
 ]);
 

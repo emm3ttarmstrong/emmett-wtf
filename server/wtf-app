@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+# wtf-app: runs the apps behind *.emmett.wtf on Omarchy. Each app is a git checkout in /home/emmett/services/<name>,
+# a Caddy site, and either a Docker Compose project or a folder of static files. Run it with sudo.
+#
+#   wtf-app add <name> <owner/repo> [--host <host>]... [--static <dir>]   register an app and deploy it
+#   wtf-app deploy <name> [--force]     deploy if origin/main has moved, or always with --force
+#   wtf-app deploy-all                  what wtf-deploy.timer runs every minute
+#   wtf-app sync                        add every site listed in emmett-wtf's sites/*.json that isn't registered yet
+#   wtf-app list                        every app, its hosts, port and deployed commit
+#   wtf-app logs <name>                 the container's recent logs
+#   wtf-app remove <name>               stop the app and delete its checkout, site and registration
+#
+# <name> serves <name>.emmett.wtf unless --host says otherwise. See server/README.md for what an app repo must contain.
+set -euo pipefail
+
+ROOT=${WTF_ROOT:-}  # empty on the server; tests point it at a sandbox
+APPS=$ROOT/etc/wtf/apps
+SECRETS=$ROOT/etc/wtf/secrets
+STATE=$ROOT/var/lib/wtf
+SERVICES=$ROOT/home/emmett/services
+CADDY_SITES=$ROOT/etc/caddy/sites
+OWNERS=${WTF_OWNERS:-emm3ttarmstrong armstrong-agency-internal armstrong-agency-shared}
+HUB_APP=emmett-wtf
+FIRST_PORT=4100
+GIT=(sudo -u emmett env GIT_TERMINAL_PROMPT=0 git)
+
+die() { echo "wtf-app: $*" >&2; exit 1; }
+[[ $(id -u) -eq 0 ]] || die "run this with sudo"
+valid_name() { [[ $1 =~ ^[a-z0-9][a-z0-9-]{0,40}$ ]] || die "'$1' isn't a valid name (lowercase letters, digits, dashes)"; }
+load() {
+  valid_name "$1"
+  [[ -f $APPS/$1.env ]] || die "no app named '$1'"
+  NAME= REPO= HOSTS= PORT= MODE= STATIC_DIR=
+  # shellcheck disable=SC1090
+  . "$APPS/$1.env"
+}
+compose() { (cd "$SERVICES/$NAME" && PORT=$PORT docker compose -p "wtf-$NAME" "$@"); }
+
+next_port() {
+  local port=$FIRST_PORT
+  while grep -qsx "PORT=$port" "$APPS"/*.env || ss -ltn | grep -q ":$port "; do port=$((port + 1)); done
+  echo "$port"
+}
+
+write_site() {
+  local file=$CADDY_SITES/$NAME.caddy addresses=
+  for host in $HOSTS; do addresses+="${addresses:+, }$host:80"; done
+  if [[ $MODE == static ]]; then
+    printf '%s {\n\troot * %s\n\tfile_server\n}\n' "$addresses" "$SERVICES/$NAME/$STATIC_DIR" > "$file"
+  else
+    printf '%s {\n\treverse_proxy 127.0.0.1:%s\n}\n' "$addresses" "$PORT" > "$file"
+  fi
+  if ! caddy validate --config "$ROOT/etc/caddy/Caddyfile" > /dev/null 2>&1; then
+    rm -f "$file"
+    die "Caddy rejected the site for $NAME, so it was not added"
+  fi
+  systemctl reload caddy
+}
+
+cmd_add() {
+  local name=${1:-} repo=${2:-} hosts= static=
+  [[ -n $name && -n $repo ]] || die "usage: wtf-app add <name> <owner/repo> [--host <host>]... [--static <dir>]"
+  shift 2
+  while (($#)); do
+    case $1 in
+      --host) hosts+="${hosts:+ }$2"; shift 2 ;;
+      --static) static=$2; shift 2 ;;
+      *) die "unknown option $1" ;;
+    esac
+  done
+  valid_name "$name"
+  [[ $repo =~ ^([A-Za-z0-9-]+)/([A-Za-z0-9._-]+)$ ]] || die "'$repo' isn't owner/repo"
+  [[ " $OWNERS " == *" ${BASH_REMATCH[1]} "* ]] || die "repos must belong to one of: $OWNERS"
+  [[ ! -e $APPS/$name.env ]] || die "'$name' is already registered"
+  [[ -z $static || ! $static =~ (^/|\.\.) ]] || die "--static takes a folder inside the repo"
+  hosts=${hosts:-$name.emmett.wtf}
+  for host in $hosts; do
+    [[ $host =~ ^[a-z0-9.-]+$ ]] || die "'$host' isn't a hostname"
+    ! grep -qs "^HOSTS=.*\b$host\b" "$APPS"/*.env || die "$host already belongs to another app"
+  done
+
+  install -d -m 755 "$APPS" "$STATE" "$CADDY_SITES"
+  install -d -m 700 "$SECRETS"
+  install -d -o emmett -g emmett "$SERVICES"
+  [[ -d $SERVICES/$name ]] || "${GIT[@]}" clone --quiet "https://github.com/$repo.git" "$SERVICES/$name"
+  NAME=$name REPO=$repo HOSTS=$hosts PORT=$(next_port) MODE=${static:+static} STATIC_DIR=$static
+  MODE=${MODE:-docker}
+  printf 'NAME=%q\nREPO=%q\nHOSTS=%q\nPORT=%s\nMODE=%s\nSTATIC_DIR=%q\n' "$NAME" "$REPO" "$HOSTS" "$PORT" "$MODE" "$STATIC_DIR" > "$APPS/$name.env"
+  write_site
+  echo "added $name: $hosts"
+  cmd_deploy "$name" --force
+}
+
+# Deploys origin/main. A commit that failed to deploy isn't tried again until main moves, so a broken build doesn't loop.
+cmd_deploy() {
+  load "${1:-}"
+  local force=${2:-} dir=$SERVICES/$NAME sha
+  "${GIT[@]}" -C "$dir" fetch --quiet origin main
+  sha=$("${GIT[@]}" -C "$dir" rev-parse origin/main)
+  if [[ $force != --force ]]; then
+    [[ $(cat "$STATE/$NAME.sha" 2> /dev/null) != "$sha" ]] || return 0
+    [[ $(cat "$STATE/$NAME.failed" 2> /dev/null) != "$sha" ]] || return 0
+  fi
+  echo "deploying $NAME ${sha:0:7}"
+  "${GIT[@]}" -C "$dir" checkout --quiet --force -B main "$sha"
+  if deploy_checkout; then
+    echo "$sha" > "$STATE/$NAME.sha"
+    rm -f "$STATE/$NAME.failed"
+    echo "deployed $NAME ${sha:0:7}"
+    [[ $NAME != "$HUB_APP" ]] || cmd_sync
+  else
+    echo "$sha" > "$STATE/$NAME.failed"
+    die "$NAME ${sha:0:7} failed to deploy; whatever was running before is still running"
+  fi
+}
+
+deploy_checkout() {
+  [[ $MODE == static ]] && return 0
+  local dir=$SERVICES/$NAME
+  if [[ -f $SECRETS/$NAME.env ]]; then
+    install -m 600 -o emmett -g emmett "$SECRETS/$NAME.env" "$dir/.env"
+  fi
+  compose up -d --build --remove-orphans || return 1
+  for _ in $(seq 45); do
+    local code
+    code=$(curl -s -o /dev/null -m 5 -w '%{http_code}' "http://127.0.0.1:$PORT/" || true)
+    [[ $code =~ ^[1-4] ]] && return 0
+    sleep 2
+  done
+  echo "$NAME didn't answer on port $PORT within 90 seconds" >&2
+  compose logs --tail 30 >&2 || true
+  return 1
+}
+
+cmd_deploy_all() {
+  local failed=0
+  for file in "$APPS"/*.env; do
+    [[ -e $file ]] || continue
+    (cmd_deploy "$(basename "$file" .env)") || failed=1
+  done
+  return $failed
+}
+
+# The hub repo's sites/<name>.json files are the list of subdomain apps. Sync only ever adds: removing is `wtf-app remove`.
+cmd_sync() {
+  local file name line
+  for file in "$SERVICES/$HUB_APP"/sites/*.json; do
+    [[ -e $file ]] || continue
+    name=$(basename "$file" .json)
+    [[ ! -e $APPS/$name.env ]] || continue
+    line=$(python3 - "$file" "$name" <<'PY'
+import json, shlex, sys
+site = json.load(open(sys.argv[1]))
+name = sys.argv[2]
+host = site.get("host", f"{name}.emmett.wtf")
+if host != "emmett.wtf" and not host.endswith(".emmett.wtf"):
+    sys.exit(f"{host} is not under emmett.wtf")
+args = [name, site["repo"], "--host", host]
+if site.get("static"):
+    args += ["--static", site["static"]]
+print(" ".join(shlex.quote(a) for a in args))
+PY
+    ) || { echo "wtf-app: skipped sites/$name.json" >&2; continue; }
+    # A site that fails its first deploy stays registered and is retried when its repo's main moves.
+    (eval "cmd_add $line") || echo "wtf-app: $name was added but did not deploy" >&2
+  done
+}
+
+cmd_list() {
+  for file in "$APPS"/*.env; do
+    [[ -e $file ]] || continue
+    load "$(basename "$file" .env)"
+    local sha
+    sha=$(cat "$STATE/$NAME.sha" 2> /dev/null || echo "not deployed")
+    printf '%-20s %-8s %-6s %-9s %s\n' "$NAME" "$MODE" "$PORT" "${sha:0:7}" "$HOSTS"
+  done
+}
+
+cmd_logs() { load "${1:-}"; [[ $MODE == docker ]] || die "$NAME is static and has no logs"; compose logs --tail "${2:-100}"; }
+
+cmd_remove() {
+  load "${1:-}"
+  [[ $NAME != "$HUB_APP" ]] || die "refusing to remove the hub itself"
+  [[ $MODE != docker ]] || compose down --remove-orphans || true
+  rm -f "$CADDY_SITES/$NAME.caddy" "$APPS/$NAME.env" "$SECRETS/$NAME.env" "$STATE/$NAME.sha" "$STATE/$NAME.failed"
+  rm -rf "${SERVICES:?}/$NAME"
+  systemctl reload caddy
+  echo "removed $NAME"
+}
+
+command=${1:-}
+shift || true
+case $command in
+  list) cmd_list ;;
+  logs) cmd_logs "$@" ;;
+  add | deploy | deploy-all | sync | remove)
+    exec 9> /run/wtf-app.lock
+    flock -w 900 9 || die "another wtf-app run held the lock for 15 minutes"
+    "cmd_${command//-/_}" "$@"
+    ;;
+  *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

@@ -1,0 +1,8 @@
+[Unit]
+Description=Deploy emmett.wtf apps whose main branch has moved
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wtf-app deploy-all
+TimeoutStartSec=30min
