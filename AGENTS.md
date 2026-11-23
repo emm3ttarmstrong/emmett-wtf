@@ -71,7 +71,7 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 
 - A prototype lives entirely in `prototypes/<slug>/` and imports nothing from another prototype. Its API routes go in `app/api/p/<slug>/`, which the gate covers.
 - `page.tsx` default-exports the component and stays thin, about 60 lines. Split out `types.ts`, `data.ts` (mock data, constants, the control schema), pure logic files that run without React, and one descriptively named file per meaningful component.
-- The prototype renders inside a flex column under a 48px header that the route provides. Use `flex-1` to fill it. Don't add your own back link or theme toggle.
+- The prototype renders inside a flex column under a 48px header that the route provides. The page is exactly one screen tall: use `flex-1` to fill it, and long content scrolls inside that area. Don't add your own back link or theme toggle.
 
 ### Design system
 
@@ -156,3 +156,4 @@ Every prototype has a `HOW_IT_WORKS.md`, updated in the same commit as any chang
 - A Caddy change on Omarchy needs `systemctl restart caddy`. Reload fails because the admin API is off.
 - `pkill -f "next start"` does not stop a production server, because the process renames itself. A server left on a port makes every later test hit an old build. Stop it by port: `lsof -ti :<port> | xargs kill`.
 - Emmett's global gitignore excludes `*.mp4`. This repo's `.gitignore` re-includes `public/og/*.mp4`; after capturing, check `git status` shows the video.
+- A prototype page must be pinned to the screen height (`h-dvh`), not allowed to grow. When it grew, a tall control panel pushed the stage's bottom buttons below the fold. Look at the bottom edge of every screenshot.

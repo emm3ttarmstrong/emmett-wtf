@@ -39,7 +39,7 @@ export default async function PrototypePage({ params }: PageProps<"/p/[slug]">) 
   const { default: Prototype } = await load();
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col">
+    <div className="flex h-dvh flex-col">
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-1">
         <div className="flex min-w-0 items-center">
           <Button variant="ghost" className="size-11" aria-label="All prototypes" nativeButton={false} render={<Link href="/" />}>
@@ -49,7 +49,7 @@ export default async function PrototypePage({ params }: PageProps<"/p/[slug]">) 
         </div>
         <ThemeToggle />
       </header>
-      <main className="flex min-h-0 flex-1 flex-col">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Prototype />
       </main>
     </div>
