@@ -31,7 +31,7 @@
     "crawler": {
       "y": 374,
       "scale": 0.42,
-      "dx": -11,
+      "dx": 11,
       "oy": 358,
       "length": 250,
       "near": 2,
@@ -66,27 +66,13 @@
     "low": 215
   },
   "lights": {
-    "head": {
-      "dx": 19,
-      "y": 222,
-      "angle": 6,
-      "length": 150,
-      "near": 5,
-      "far": 42,
-      "strength": 0.3
-    },
-    "lantern": {
-      "y": 282,
-      "radius": 46,
-      "strength": 0.3
-    },
     "bulb": {
       "x": 205,
       "y": 36,
-      "length": 286,
-      "near": 10,
-      "far": 100,
-      "strength": 0.2,
+      "length": 130,
+      "near": 12,
+      "far": 64,
+      "strength": 0.16,
       "designs": [
         0,
         1,
@@ -95,19 +81,6 @@
         7
       ],
       "pool": 4
-    },
-    "moon": {
-      "y": 140,
-      "angle": 62,
-      "swing": 12,
-      "length": 300,
-      "near": 34,
-      "far": 70,
-      "strength": 0.16,
-      "windows": {
-        "0": 292,
-        "6": 90
-      }
     }
   },
   "stashes": [
@@ -208,8 +181,7 @@
     "x": 138,
     "y": 222,
     "left": 60,
-    "right": 215,
-    "low": 170
+    "right": 215
   },
   "glints": 24,
   "pages": 5,
@@ -221,5 +193,25 @@
   "fore": {
     "period": 1560,
     "factor": 1.5
+  },
+  "windows": {
+    "0": 250,
+    "6": 36
+  },
+  "pets": {
+    "cat": {
+      "y": 368,
+      "scale": 0.42,
+      "reach": 26,
+      "low": 215
+    }
+  },
+  "party": {
+    "cat": -28,
+    "dog": -76,
+    "detective": -122,
+    "intern": -160,
+    "crawler": 84,
+    "satellite": 60
   }
 }

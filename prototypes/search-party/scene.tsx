@@ -14,6 +14,9 @@ const layout = new Layout({ fit: Fit.Contain });
 type Props = {
   // A point in the view, in artboard units. `press` is true for a fresh tap and false while a finger is dragging.
   onAim: (point: Point, press: boolean) => void;
+  onRelease: () => void;
+  // Which part of the view the frame shows, in artboard units from the view's left edge.
+  onSeen: (left: number, right: number) => void;
   setPainter: (paint: Painter | null) => void;
 };
 
@@ -22,10 +25,27 @@ type Props = {
 //
 // The artboard is one view of the walk, wider than a phone. The canvas is always the whole view at the height of
 // the frame, centred, so a wide screen shows all of it and a narrow one shows the middle, where the searcher is.
-export function Scene({ onAim, setPainter }: Props) {
+export function Scene({ onAim, onRelease, onSeen, setPainter }: Props) {
   const { rive, setCanvasRef, setContainerRef } = useRive({ src, artboard: RIVE.artboard, stateMachine: RIVE.stateMachine, autoplay: true, autoBind: true, layout });
   const vm = rive?.viewModelInstance ?? null;
+  const frame = useRef<HTMLButtonElement | null>(null);
   const view = useRef<HTMLSpanElement | null>(null);
+
+  // Works out which slice of the view the frame shows, now and whenever either changes size.
+  useEffect(() => {
+    const report = () => {
+      const outer = frame.current?.getBoundingClientRect();
+      const inner = view.current?.getBoundingClientRect();
+      if (!outer || !inner || !inner.width) return;
+      const unit = GEO.width / inner.width;
+      onSeen(Math.max(0, (outer.left - inner.left) * unit), Math.min(GEO.width, (outer.right - inner.left) * unit));
+    };
+    report();
+    const watcher = new ResizeObserver(report);
+    if (frame.current) watcher.observe(frame.current);
+    if (view.current) watcher.observe(view.current);
+    return () => watcher.disconnect();
+  }, [onSeen, vm]);
 
   useEffect(() => {
     if (!vm) return;
@@ -77,22 +97,27 @@ export function Scene({ onAim, setPainter }: Props) {
     const point = pointOf(event);
     if (point) onAim(point, true);
   };
-  // Holding and dragging keeps the torch following the finger.
+  // Holding and dragging keeps the torch following the finger. Holding still keeps it where it is.
   const drag = (event: PointerEvent<HTMLButtonElement>) => {
     const point = event.currentTarget.hasPointerCapture(event.pointerId) ? pointOf(event) : null;
     if (point) onAim(point, false);
   };
   // A keyboard press has no position, so it looks at a random spot a little way ahead.
   const key = (event: MouseEvent<HTMLButtonElement>) => {
-    if (event.detail === 0) onAim({ x: GEO.hero.screenX + 60 + Math.random() * 300, y: 30 + Math.random() * 250 }, true);
+    if (event.detail !== 0) return;
+    onAim({ x: GEO.hero.screenX + 60 + Math.random() * 200, y: 30 + Math.random() * 250 }, true);
+    onRelease();
   };
 
   return (
     <button
+      ref={frame}
       type="button"
       aria-label="Search as you walk"
       onPointerDown={press}
       onPointerMove={drag}
+      onPointerUp={onRelease}
+      onPointerCancel={onRelease}
       onClick={key}
       className="relative block size-full cursor-pointer touch-none overflow-hidden rounded-xl outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >

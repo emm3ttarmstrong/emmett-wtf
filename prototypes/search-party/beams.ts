@@ -1,5 +1,5 @@
 import { GEO, TUNING } from "./data";
-import type { Beam, Economy, Point, Poses } from "./types";
+import type { Beam, Economy, Follower, Point } from "./types";
 
 const DEG = Math.PI / 180;
 
@@ -21,12 +21,12 @@ export function inBeam(beam: Beam, point: Point, margin = 4) {
 
 // How the torch upgrades change the beam. Each is also what the Rive file is told, so the picture and the rules agree.
 export const torchWide = (state: Economy) => 1 + TUNING.lensWiden * state.levels.lens;
-export const torchLong = (state: Economy) => 1 + TUNING.reachLengthen * state.levels.reach;
 export const torchDwell = (state: Economy) => TUNING.torchDwell / (1 + TUNING.bulbQuicken * state.levels.bulb);
+
+export type Crew = "intern" | "crawler" | "detective" | "satellite";
+export const CREW: readonly Crew[] = ["intern", "crawler", "detective", "satellite"];
 // How big a helper's light is, as a multiple of its starting size. Zero until it is hired.
-export const crewSize = (state: Economy, id: "intern" | "crawler" | "detective" | "satellite") => (state.levels[id] > 0 ? 1 + TUNING.crewGrow * (state.levels[id] - 1) : 0);
-export const headSize = (state: Economy) => (state.levels.headlamp > 0 ? 0.7 + 0.3 * state.levels.headlamp : 0);
-export const lanternSize = (state: Economy) => (state.levels.lantern > 0 ? 0.6 + 0.4 * state.levels.lantern : 0);
+export const crewSize = (state: Economy, id: Crew) => (state.levels[id] > 0 ? 1 + TUNING.crewGrow * (state.levels[id] - 1) : 0);
 
 // The searcher's hand, which the torch turns around. It is on whichever side the searcher faces.
 export const handOf = (heroX: number, facing: 1 | -1): Point => ({ x: heroX + facing * GEO.hero.handX, y: GEO.hero.handY });
@@ -35,8 +35,7 @@ export const handOf = (heroX: number, facing: 1 | -1): Point => ({ x: heroX + fa
 export function torchBeam(heroX: number, facing: 1 | -1, turn: number, state: Economy): Beam {
   const { start, length, near, far } = GEO.beams.main;
   const wide = torchWide(state);
-  const long = torchLong(state);
-  return { ...handOf(heroX, facing), angle: turn - 90, start: start * long, length: length * long, near: near * wide, far: far * wide };
+  return { ...handOf(heroX, facing), angle: turn - 90, start, length, near: near * wide, far: far * wide };
 }
 
 // The turn that points the torch from a hand at a point, kept away from straight down.
@@ -46,12 +45,6 @@ export function turnTowards(hand: Point, point: Point) {
 }
 
 const sized = (beam: Omit<Beam, "start">, size: number): Beam => ({ ...beam, start: 0, length: beam.length * size, near: beam.near * size, far: beam.far * size });
-
-// The headlamp points wherever the searcher faces.
-export function headBeam(heroX: number, facing: 1 | -1, state: Economy): Beam {
-  const head = GEO.lights.head;
-  return sized({ x: heroX + facing * head.dx, y: head.y, angle: facing === 1 ? head.angle : 180 - head.angle, length: head.length, near: head.near, far: head.far }, headSize(state));
-}
 
 // The walk is a loop of places, each one segment wide. These say which place a stretch of the world is.
 export const VIEW = GEO.width;
@@ -71,39 +64,24 @@ export function bulbsInView(camX: number, state: Economy) {
     .map((k) => k * GEO.segment + GEO.lights.bulb.x);
 }
 
-// The window the moon shines through, if the curtains are open and one is in view: the one nearest the middle.
-export function moonWindow(camX: number, state: Economy) {
-  if (state.levels.curtains === 0) return null;
-  const windows = GEO.lights.moon.windows as Record<string, number>;
-  const inView = segmentsInView(camX, 0).flatMap((k) => (String(designOf(k)) in windows ? [k * GEO.segment + windows[String(designOf(k))]] : []));
-  const middle = camX + VIEW / 2;
-  return inView.sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle))[0] ?? null;
+// A working ceiling bulb throws a short, soft cone straight down.
+export function bulbBeams(camX: number, state: Economy): Beam[] {
+  const { y, length, near, far } = GEO.lights.bulb;
+  return bulbsInView(camX, state).map((x) => sized({ x, y, angle: 90, length, near, far }, 1));
 }
 
-export const moonAngle = (time: number) => GEO.lights.moon.angle + GEO.lights.moon.swing * Math.sin(time * 0.1);
+// How each helper swings its light, as an angle for someone facing right. It depends only on the clock.
+const SWING: Record<Crew, (time: number) => number> = {
+  intern: (time) => -38 + 10 * Math.sin(time * 1.1) + 4 * Math.sin(time * 2.7),
+  crawler: (time) => -30 + 20 * Math.sin(time * 0.9),
+  detective: (time) => -20 + 18 * Math.sin(time * 0.35),
+  satellite: (time) => 90 + 14 * Math.sin(time * 0.37),
+};
 
-// The lights that belong to the places in view: working ceiling bulbs, and the moon once the curtains are open.
-export function roomLights(time: number, camX: number, state: Economy): Beam[] {
-  const { bulb, moon } = GEO.lights;
-  const lights = bulbsInView(camX, state).map((x) => sized({ x, y: bulb.y, angle: 90, length: bulb.length, near: bulb.near, far: bulb.far }, 1));
-  const window = moonWindow(camX, state);
-  if (window !== null) lights.push(sized({ x: window, y: moon.y, angle: moonAngle(time), length: moon.length, near: moon.near, far: moon.far }, 1));
-  return lights;
+// A helper's light, from where they stand and which way they face. Facing left mirrors both the light's position
+// and its angle.
+export function crewBeam(id: Crew, follower: Follower, time: number, state: Economy): Beam {
+  const b = GEO.beams[id];
+  const angle = SWING[id](time);
+  return sized({ x: follower.x + follower.dir * b.dx, y: b.oy, angle: follower.dir === 1 ? angle : 180 - angle, length: b.length, near: b.near, far: b.far }, crewSize(state, id));
 }
-
-// The crew walks with the searcher. Each follows a fixed path across the view that depends only on the clock,
-// so the game and the drawing always agree, slowly enough for their lights to rest on things.
-export function posesAt(time: number, camX: number, state: Economy): Poses {
-  const b = GEO.beams;
-  const middle = camX + VIEW / 2;
-  const pose = (name: keyof Poses, x: number, angle: number) => ({ x, beam: sized({ x: x + b[name].dx, y: b[name].oy, angle, length: b[name].length, near: b[name].near, far: b[name].far }, crewSize(state, name)) });
-  return {
-    intern: pose("intern", middle + 380 * Math.sin(time * 0.045), -35 + 10 * Math.sin(time * 1.1) + 4 * Math.sin(time * 2.7)),
-    crawler: pose("crawler", middle + 30 + 370 * Math.sin(time * 0.07 + 1), -152 + 20 * Math.sin(time * 0.9)),
-    detective: pose("detective", middle - 60 + 330 * Math.sin(time * 0.028 + 2), -18 + 20 * Math.sin(time * 0.18)),
-    satellite: pose("satellite", middle + 420 * Math.sin(time * 0.05 + 4), 90 + 14 * Math.sin(time * 0.37)),
-  };
-}
-
-// Where the dog would be if it had nothing to chase.
-export const dogPatrol = (time: number, camX: number) => camX + VIEW / 2 + 400 * Math.sin(time * 0.06 + 3);

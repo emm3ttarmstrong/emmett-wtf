@@ -1,18 +1,18 @@
-export type HelperId = "intern" | "crawler" | "dog" | "detective" | "satellite";
-export type UpgradeId = "lens" | "reach" | "bulb" | "headlamp" | "lantern" | "bulbs" | "curtains" | "cat";
-export type ItemId = HelperId | UpgradeId;
+export type FollowerId = "intern" | "crawler" | "detective" | "satellite" | "dog" | "cat";
+export type UpgradeId = "lens" | "bulb" | "bulbs";
+export type ItemId = FollowerId | UpgradeId;
 
 // Something the shop sells. Everything is bought one level at a time, and every level changes what the room looks like.
 export type Item = {
   id: ItemId;
-  group: "torch" | "crew" | "room";
+  group: "torch" | "crew" | "pets" | "room";
   name: string;
   note: string;
   cost: number;
   // Each level costs this many times the one before.
   growth: number;
   max: number;
-  // Crew only: clues a second at level one. It doubles with each level.
+  // Crew and pets only: clues a second at level one. It doubles with each level.
   perSecond?: number;
 };
 export type Find = { at: number; name: string };
@@ -39,11 +39,17 @@ export type Glint = { x: number; y: number; state: "on" | "pop" | "off"; timer: 
 // A loose sheet blowing through the room. The big one is "the page".
 export type Sheet = { active: boolean; x: number; baseY: number; speed: number; phase: number; big: boolean };
 
+// Someone walking with the searcher: where they are, which way they face, and whether they are stepping.
+export type Follower = { x: number; dir: 1 | -1; walking: boolean };
+
 // Everything in the room is placed in world space: x keeps growing as the searcher walks. The view shows a window
 // of it that starts at `camX`.
 export type World = {
   time: number;
   camX: number;
+  // The part of the view the device actually shows, in view units from its left edge. A phone shows the middle.
+  // Things appear and events happen inside this, so they are never out of sight.
+  seen: { left: number; right: number };
   hero: {
     x: number;
     // How fast the searcher is walking, in pixels a second.
@@ -59,12 +65,12 @@ export type World = {
     // When the player last pointed the torch. The torch only pays its bonus while it is being used.
     aimedAt: number;
   };
+  followers: Record<FollowerId, Follower>;
   glints: Glint[];
   // Stashes that have been touched, keyed by "<segment>:<slot>": when each is ready again, and how far through
   // rummaging it a light is (0 to 1). A stash that isn't listed is ready and untouched.
   stashes: Record<string, { readyAt: number; charge: number }>;
   mouse: { active: boolean; x: number; dir: 1 | -1; nextAt: number };
-  dog: { x: number; dir: 1 | -1 };
   // Where the latest find sits on the floor: beside wherever the searcher was when it turned up.
   findX: number;
   // Events. Only one runs at a time, except the mouse, which keeps its own clock.
@@ -74,9 +80,6 @@ export type World = {
   phone: { active: boolean; until: number; charge: number; x: number; y: number };
   sheets: Sheet[];
 };
-
-// Where every helper is and where its light points this instant.
-export type Poses = Record<"intern" | "crawler" | "detective" | "satellite", { x: number; beam: Beam }>;
 
 // A burst's position is in world space.
 export type WorldEvent = { type: "burst"; x: number; y: number } | { type: "tap" } | { type: "notice"; text: string };

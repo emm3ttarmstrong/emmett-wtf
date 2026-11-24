@@ -80,17 +80,27 @@ const HERO_X = HERO.screenX;
 const HAND = { x: HERO_X + HERO.handX, y: HERO.handY };
 const SEG = GEO.segment;
 const DESIGNS = Array.from({ length: GEO.designs }, (_, d) => d);
-const WINDOWS = Object.keys(GEO.lights.moon.windows).map(Number);
+const WINDOWS = Object.keys(GEO.windows).map(Number);
 // Where the art generator first places each of the eight places: three abreast.
 const segmentX = (d) => (d % 3) * SEG;
 export const FINDS = ["sock", "semicolon", "remote", "keys", "socket", "plot", "atlantis", "note"];
 // Where the art generator places each helper. `crawler` is the robot.
-const HELPER_X = { satellite: 700, detective: 200, intern: 420, crawler: 800, dog: 300 };
+const HELPER_X = { satellite: 700, detective: 200, intern: 420, crawler: 800, dog: 300, cat: 360 };
 const BEAMED = ["intern", "crawler", "detective", "satellite"];
-const HELPERS = ["satellite", "detective", "intern", "crawler", "dog"];
+const HELPERS = ["satellite", "detective", "intern", "crawler", "dog", "cat"];
+// The followers on the ground, which turn to face the way they walk and step as they go.
+const WALKERS = ["intern", "crawler", "detective", "dog", "cat"];
+// Where each leg hangs from, in the follower's own artwork units.
+const HIPS = {
+  intern: [[-11.5, -30], [12.5, -30]],
+  detective: [[-13, -30], [15, -30]],
+  dog: [[-25, -20], [21, -20], [-37, -22], [9, -22]],
+  cat: [[-18.5, -16], [15.5, -16], [-26.5, -16], [7.5, -16]],
+};
+const placeOf = (n) => (n === "dog" ? GEO.dog : n === "cat" ? GEO.pets.cat : GEO.beams[n]);
 // A find appears beside the searcher, so every find and its sparkles share one bound position.
 const FIND_START = { x: HERO_X + 60, y: GEO.floor };
-const helperY = (n) => (n === "dog" ? GEO.dog.y : GEO.beams[n].y);
+const helperY = (n) => placeOf(n).y;
 
 const P = (name, propertyType) => ({ name, propertyType });
 // Every view model property the game drives. Numbers unless noted.
@@ -106,13 +116,16 @@ const PROPERTIES = [
   // Where each of the eight places is on screen, and the two layers that move at their own speeds.
   ...DESIGNS.map((d) => P(`seg${d}x`, "number")), P("skyAx", "number"), P("skyBx", "number"), P("foreAx", "number"), P("foreBx", "number"),
   P("findX", "number"),
-  // The torch's reach and brightness, the headlamp and the lantern.
-  P("beamLong", "number"), P("beamBright", "number"), P("headX", "number"), P("headAim", "number"), P("headSize", "number"), P("lantern", "number"),
-  // Lights that belong to the room, and lightning.
-  ...Array.from({ length: GEO.lights.bulb.pool }, (_, i) => [P(`bulb${i}`, "number"), P(`bulb${i}x`, "number")]).flat(), P("moon", "number"), P("moonX", "number"), P("moonAim", "number"), P("flashX", "number"),
+  // The torch's reach and brightness.
+  P("beamLong", "number"), P("beamBright", "number"),
+  // The ceiling bulbs, and lightning.
+  ...Array.from({ length: GEO.lights.bulb.pool }, (_, i) => [P(`bulb${i}`, "number"), P(`bulb${i}x`, "number")]).flat(), P("flashX", "number"),
+  // The pet cat, and which way each follower faces and whether it is walking.
+  P("cat", "boolean"), P("catX", "number"),
+  ...WALKERS.flatMap((n) => [P(`${n}Dir`, "number"), P(`${n}Walking`, "boolean")]),
   // How big each helper's light has grown.
   ...BEAMED.map((n) => P(`${n}Size`, "number")),
-  P("catCollar", "number"), P("mothX", "number"), P("mothY", "number"), P("alertX", "number"), P("alertY", "number"), P("alertS", "number"),
+  P("mothX", "number"), P("mothY", "number"), P("alertX", "number"), P("alertY", "number"), P("alertS", "number"),
   ...Array.from({ length: GEO.pages }, (_, i) => [P(`p${i}x`, "number"), P(`p${i}y`, "number"), P(`p${i}s`, "number")]).flat(),
 ];
 
@@ -148,7 +161,11 @@ const stages = {
     await at("sparkles", FIND_START.x, FIND_START.y - 24);
     for (const name of FINDS) await at(`find-${name}`, FIND_START.x, FIND_START.y);
     for (const name of HELPERS) await at(`helper-${name}`, HELPER_X[name], helperY(name));
-    await at("dog-flip", HELPER_X.dog, GEO.dog.y);
+    for (const name of HELPERS) for (const part of ["flip", "bob"]) await at(`${name}-${part}`, HELPER_X[name], helperY(name));
+    for (const [name, hips] of Object.entries(HIPS)) {
+      const scale = placeOf(name).scale;
+      for (const [i, [x, y]] of hips.entries()) await at(`${name}-leg-${i}`, HELPER_X[name] + x * scale, helperY(name) + y * scale);
+    }
     for (const name of BEAMED) {
       const b = GEO.beams[name];
       await at(`beam-${name}`, HELPER_X[name] + b.dx, b.oy);
@@ -163,11 +180,7 @@ const stages = {
     await at("fore-b", GEO.fore.period, 0);
     const L = GEO.lights;
     for (let i = 0; i < L.bulb.pool; i++) for (const part of ["beam", "haze"]) await at(`${part}-bulb-${i}`, L.bulb.x, L.bulb.y);
-    for (const part of ["beam", "haze"]) await at(`${part}-moon`, L.moon.windows[0], L.moon.y);
-    for (const name of ["beam-head", "headlamp", "haze-head"]) await at(name, HERO_X + L.head.dx, L.head.y);
-    for (const part of ["beam", "haze"]) await at(`${part}-lantern`, HERO_X, L.lantern.y);
     await at("beam-flash", -5000, 0);
-    await at("cat-collar", segmentX(GEO.cat.design) + GEO.cat.x, GEO.cat.y);
     for (const name of ["moth", "moth-wings"]) await at(name, HERO_X + 120, 120);
     await at("alert", SEG + GEO.phones[1][0], GEO.phones[1][1] - 16);
     for (let i = 0; i < GEO.pages; i++) await at(`page-${i}`, 900 - i * 22, 296);
@@ -205,13 +218,6 @@ const stages = {
       await bind(object, K.sx, name);
       await bind(object, K.sy, name);
     };
-    await bind("beam-head", K.x, "headX");
-    await bind("beam-head", K.r, "headAim");
-    await both("beam-head", "headSize");
-    await both("headlamp", "headSize");
-    await bind("beam-lantern", K.x, "heroX");
-    await both("beam-lantern", "lantern");
-    await both("haze-lantern", "lantern");
     for (let i = 0; i < GEO.lights.bulb.pool; i++) {
       for (const part of ["beam", "haze"]) {
         await both(`${part}-bulb-${i}`, `bulb${i}`);
@@ -224,14 +230,8 @@ const stages = {
     await bind("sky-b", K.x, "skyBx");
     await bind("fore-a", K.x, "foreAx");
     await bind("fore-b", K.x, "foreBx");
-    for (const part of ["beam", "haze"]) {
-      await bind(`${part}-moon`, K.x, "moonX");
-      await both(`${part}-moon`, "moon");
-      await bind(`${part}-moon`, K.r, "moonAim");
-    }
     await bind("beam-flash", K.x, "flashX");
     for (const name of BEAMED) for (const part of ["beam", "haze"]) await both(`${part}-${name}`, `${name}Size`);
-    await both("cat-collar", "catCollar");
     await bind("moth", K.x, "mothX");
     await bind("moth", K.y, "mothY");
     await bind("alert", K.x, "alertX");
@@ -250,7 +250,8 @@ const stages = {
       await bind(`helper-${name}`, K.x, `${name}X`);
     }
     await bind("helper-dog", K.x, "dogX");
-    await bind("dog-flip", K.sx, "dogDir");
+    await bind("helper-cat", K.x, "catX");
+    for (const name of WALKERS) await bind(`${name}-flip`, K.sx, `${name}Dir`);
     for (let i = 0; i < GEO.glints; i++) {
       await bind(`glint-${i}`, K.x, `g${i}x`);
       await bind(`glint-${i}`, K.y, `g${i}y`);
@@ -368,6 +369,26 @@ stages.timelines = async () => {
 
   done.push(await timeline("flap", 10, true, [[id["moth-wings"], K.sx, 0, 100], [id["moth-wings"], K.sx, 5, 35], [id["moth-wings"], K.sx, 10, 100]]));
 
+  for (const name of WALKERS) {
+    const bob = await idOf(`${name}-bob`);
+    const bobY = (await values(bob, [K.y]))[K.y];
+    const legs = [];
+    for (let i = 0; i < (HIPS[name]?.length ?? 0); i++) legs.push(await idOf(`${name}-leg-${i}`));
+    // The robot has no legs to swing, so it scuttles: a quicker, smaller bob.
+    const frames = name === "crawler" ? 10 : name === "intern" || name === "detective" ? 24 : 16;
+    const lift = name === "crawler" ? 1 : 1.6;
+    const half = frames / 2;
+    done.push(await timeline(`${name}-still`, 1, false, [[bob, K.y, 0, bobY, "hold"], ...legs.map((leg) => [leg, K.r, 0, 0, "hold"])]));
+    done.push(await timeline(`${name}-walk`, frames, true, [
+      [bob, K.y, 0, bobY], [bob, K.y, half / 2, bobY - lift], [bob, K.y, half, bobY], [bob, K.y, half + half / 2, bobY - lift], [bob, K.y, frames, bobY],
+      // Legs swing in opposite pairs: 0 and 3 one way, 1 and 2 the other.
+      ...legs.flatMap((leg, i) => {
+        const swing = (i === 0 || i === 3 ? 1 : -1) * 22;
+        return [[leg, K.r, 0, swing], [leg, K.r, half, -swing], [leg, K.r, frames, swing]];
+      }),
+    ]));
+  }
+
   done.push(await timeline("burst-rest", 1, false, [[id.burst, K.opacity, 0, 0, "hold"]]));
   done.push(await timeline("burst-go", 26, false, [
     [id.burst, K.opacity, 0, 100, "linear"], [id.burst, K.opacity, 10, 100, "linear"], [id.burst, K.opacity, 24, 0, "hold"],
@@ -397,6 +418,7 @@ stages.machine = async () => {
     toggle("Walk", "walk-rest", "walk"),
     { name: "Find", states: Array.from({ length: FINDS.length + 1 }, (_, i) => state(`find-${i}`)), otherTransitions: [[ENTRY, "find-0"], ...Array.from({ length: FINDS.length + 1 }, (_, i) => [ANY, `find-${i}`])] },
     ...HELPERS.map((n) => toggle(n, `${n}-hidden`, `${n}-in`)),
+    ...WALKERS.map((n) => toggle(`${n} steps`, `${n}-still`, `${n}-walk`)),
     oneShot("Burst", "burst-rest", "burst-go"),
     { name: "Flap", states: [state("flap")], otherTransitions: [[ENTRY, "flap"]] },
   ].map((l) => ({ ...l, otherTransitions: l.otherTransitions.map(([from, to]) => ({ from, to })) }));
@@ -418,6 +440,8 @@ stages.machine = async () => {
       else if (to === "burst-go") when(t.id, "burst");
       else if (to === "walk") when(t.id, "walking", "equal", true);
       else if (to === "walk-rest") when(t.id, "walking", "equal", false);
+      else if (to.endsWith("-walk")) when(t.id, `${to.slice(0, -5)}Walking`, "equal", true);
+      else if (to.endsWith("-still")) when(t.id, `${to.slice(0, -6)}Walking`, "equal", false);
       else if (from === "any" && to.startsWith("find-")) when(t.id, "find", "equal", Number(to.slice(5)));
       else if (to.endsWith("-in")) when(t.id, to.slice(0, -3), "equal", true);
       else if (to.endsWith("-hidden")) when(t.id, to.slice(0, -7), "equal", false);

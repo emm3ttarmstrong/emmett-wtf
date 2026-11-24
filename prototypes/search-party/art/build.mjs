@@ -117,9 +117,8 @@ function searcher({ aim = -10, mood = "smile", rig = false } = {}) {
 function intern(cone = true) {
   return g(
     "",
-    `<rect x="-17" y="-30" width="11" height="22" fill="${C.slateDark}"/><rect x="7" y="-30" width="11" height="22" fill="${C.slateDark}"/>` +
-      `<rect x="-24" y="-11" width="22" height="11" rx="5" fill="${C.cream}"/><rect x="3" y="-11" width="24" height="11" rx="5" fill="${C.cream}"/>` +
-      `<rect x="-24" y="-3" width="22" height="3" fill="${C.slate}"/><rect x="3" y="-3" width="24" height="3" fill="${C.slate}"/>` +
+    `<g id="intern-leg-0"><rect x="-17" y="-30" width="11" height="22" fill="${C.slateDark}"/><rect x="-24" y="-11" width="22" height="11" rx="5" fill="${C.cream}"/><rect x="-24" y="-3" width="22" height="3" fill="${C.slate}"/></g>` +
+      `<g id="intern-leg-1"><rect x="7" y="-30" width="11" height="22" fill="${C.slateDark}"/><rect x="3" y="-11" width="24" height="11" rx="5" fill="${C.cream}"/><rect x="3" y="-3" width="24" height="3" fill="${C.slate}"/></g>` +
       // back arm with a coffee
       `<path d="M-18 -78 L-31 -58" stroke="${C.creamShade}" stroke-width="13" stroke-linecap="round"/>` +
       `<path d="M-41 -66 h14 l-2 18 h-10 z" fill="${C.cream}"/><rect x="-42" y="-69" width="16" height="5" rx="2" fill="${C.slate}"/><rect x="-40" y="-60" width="12" height="6" fill="${C.yellowDeep}"/>` +
@@ -170,10 +169,10 @@ function dog() {
   return g(
     "",
     `<path d="M-42 -38 Q-60 -48 -55 -68" stroke="${C.cream}" stroke-width="8" stroke-linecap="round"/>` +
-      `<rect x="-30" y="-20" width="10" height="20" rx="5" fill="${C.creamShade}"/><rect x="16" y="-20" width="10" height="20" rx="5" fill="${C.creamShade}"/>` +
+      `<g id="dog-leg-0"><rect x="-30" y="-20" width="10" height="20" rx="5" fill="${C.creamShade}"/></g><g id="dog-leg-1"><rect x="16" y="-20" width="10" height="20" rx="5" fill="${C.creamShade}"/></g>` +
       `<rect x="-46" y="-48" width="80" height="32" rx="16" fill="${C.cream}"/>` +
       `<ellipse cx="-22" cy="-39" rx="13" ry="8" fill="${C.slateLight}"/>` +
-      `<rect x="-42" y="-22" width="10" height="22" rx="5" fill="${C.cream}"/><rect x="4" y="-22" width="10" height="22" rx="5" fill="${C.cream}"/>` +
+      `<g id="dog-leg-2"><rect x="-42" y="-22" width="10" height="22" rx="5" fill="${C.cream}"/></g><g id="dog-leg-3"><rect x="4" y="-22" width="10" height="22" rx="5" fill="${C.cream}"/></g>` +
       `<rect x="-6" y="-49" width="22" height="34" rx="5" fill="${C.yellow}"/><rect x="-6" y="-36" width="22" height="5" fill="${C.cream}"/><rect x="-6" y="-49" width="22" height="5" rx="2.5" fill="${C.yellowShade}"/>` +
       `<ellipse cx="44" cy="-27" rx="18" ry="15" fill="${C.cream}"/>` +
       `<ellipse cx="60" cy="-17" rx="13" ry="9" fill="${C.cream}"/>` +
@@ -186,11 +185,28 @@ function dog() {
   );
 }
 
+function petCat() {
+  const fur = "#C9B48A";
+  const stripe = "#9C8760";
+  const leg = (i, x, far) => `<g id="cat-leg-${i}"><rect x="${x}" y="-16" width="7" height="16" rx="3.500" fill="${far ? stripe : fur}"/></g>`;
+  return g(
+    "",
+    `<path d="M-30 -30 Q-44 -40 -40 -58" stroke="${fur}" stroke-width="6" stroke-linecap="round"/>` +
+      leg(0, -22, true) + leg(1, 12, true) +
+      `<rect x="-32" y="-38" width="58" height="24" rx="12" fill="${fur}"/><path d="M-18 -38 v9 M-8 -38 v10 M2 -38 v9" stroke="${stripe}" stroke-width="3" stroke-linecap="round"/>` +
+      leg(2, -30, false) + leg(3, 4, false) +
+      `<circle cx="30" cy="-38" r="13" fill="${fur}"/><path d="M20 -46 L22 -58 L30 -50 Z M31 -50 L39 -58 L41 -46 Z" fill="${fur}"/>` +
+      `<circle cx="26" cy="-39" r="2" fill="${C.ink}"/><circle cx="36" cy="-39" r="2" fill="${C.ink}"/><path d="M31 -34 l-1.500 1.800 h3 z" fill="${C.blush}"/>` +
+      `<path d="M19 -27 q9 5 20 0" stroke="${C.yellow}" stroke-width="4" stroke-linecap="round"/><circle cx="29" cy="-23" r="2.600" fill="${C.yellowDeep}"/>`,
+    "pet-cat",
+  );
+}
+
 function detective() {
   return g(
     "",
-    `<rect x="-19" y="-30" width="12" height="22" fill="${C.slateDark}"/><rect x="9" y="-30" width="12" height="22" fill="${C.slateDark}"/>` +
-      `<path d="M-27 0 v-6 a6 6 0 0 1 6 -6 h15 v12 z" fill="${C.ink}"/><path d="M5 0 v-12 h14 a12 12 0 0 1 12 12 z" fill="${C.ink}"/>` +
+    `<g id="detective-leg-0"><rect x="-19" y="-30" width="12" height="22" fill="${C.slateDark}"/><path d="M-27 0 v-6 a6 6 0 0 1 6 -6 h15 v12 z" fill="${C.ink}"/></g>` +
+      `<g id="detective-leg-1"><rect x="9" y="-30" width="12" height="22" fill="${C.slateDark}"/><path d="M5 0 v-12 h14 a12 12 0 0 1 12 12 z" fill="${C.ink}"/></g>` +
       // back arm with notebook
       `<path d="M-18 -98 L-30 -62" stroke="${C.slateDark}" stroke-width="15" stroke-linecap="round"/>` +
       `<rect x="-43" y="-64" width="17" height="21" rx="2" fill="${C.cream}"/><path d="M-39 -58 h9 M-39 -53 h9 M-39 -48 h5" stroke="${C.slateLight}" stroke-width="1.8" stroke-linecap="round"/>` +
@@ -593,10 +609,9 @@ function skyline() {
 function foreground() {
   const black = "#000000";
   return (
-    `<rect x="120" y="0" width="34" height="380" fill="${black}"/><rect x="108" y="352" width="58" height="28" fill="${black}"/>` +
-    `<path d="M520 0 Q560 70 640 0" stroke="${black}" stroke-width="5"/><path d="M600 0 Q660 110 760 0" stroke="${black}" stroke-width="4"/>` +
-    `<path d="M930 380 C900 330 930 300 950 340 C950 290 990 280 984 340 C1010 300 1040 320 1010 380 Z" fill="${black}"/>` +
-    `<rect x="1290" y="330" width="90" height="50" fill="${black}"/><rect x="1310" y="296" width="56" height="36" fill="${black}"/>`
+    `<path d="M300 0 Q360 44 440 0" stroke="${black}" stroke-width="4"/><path d="M400 0 Q470 62 560 0" stroke="${black}" stroke-width="3"/>` +
+    `<path d="M930 380 C918 352 934 340 944 360 C944 336 964 332 962 360 C976 342 990 352 978 380 Z" fill="${black}"/>` +
+    `<path d="M1180 0 Q1230 36 1290 0" stroke="${black}" stroke-width="3"/>`
   );
 }
 
@@ -611,7 +626,6 @@ const wedge = (b, scale = 1) => {
   const start = (b.start ?? 0) / scale;
   return `M${start} ${-b.near / scale} L${b.length / scale} ${-b.far / scale} L${b.length / scale} ${b.far / scale} L${start} ${b.near / scale} Z`;
 };
-const disc = (r) => `M${r} 0 A${r} ${r} 0 1 1 ${-r} 0 A${r} ${r} 0 1 1 ${r} 0 Z`;
 const hazeGradient = (id, len, strength) =>
   `<linearGradient id="hz-${id}" x1="0" y1="0" x2="${len}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beam}" stop-opacity="${strength}"/><stop offset="1" stop-color="${C.beam}" stop-opacity="0.03"/></linearGradient>`;
 const radial = (id, r, inner, outer = 0) =>
@@ -622,9 +636,9 @@ const FLOOR_Y = GEO.floor;
 const B = GEO.beams;
 const L = GEO.lights;
 // Where each helper stands when the file is imported. The game moves them afterwards.
-const HELPER_X = { satellite: 700, detective: 200, intern: 420, crawler: 800, dog: 300 };
+const HELPER_X = { satellite: 700, detective: 200, intern: 420, crawler: 800, dog: 300, cat: 360 };
 const HELPER_AIM = { intern: -30, crawler: -150, detective: -15, satellite: 80 };
-const DRAW = { intern, crawler, detective, satellite, dog };
+const DRAW = { intern, crawler, detective, satellite, dog, cat: petCat };
 // Scattered start positions for glints and dust, from a fixed sequence so the file is the same on every run.
 const scatter = (count, seed) => Array.from({ length: count }, (_, i) => [16 + ((seed * 97 + i * 211) % (GEO.width - 32)), 20 + ((seed * 53 + i * 137) % 340)]);
 const MOTES = scatter(54, 3).map(([x, y], i) => [x, Math.min(300, y), 0.9 + (i % 4) * 0.2]);
@@ -650,12 +664,10 @@ function rigScene() {
   const hand = { x: heroX + HERO.handX, y: HERO.handY };
   const origin = (name) => ({ x: HELPER_X[name] + B[name].dx, y: B[name].oy });
   const beamed = ["intern", "crawler", "detective", "satellite"];
+  // Every follower is four nested groups: where it stands, which way it faces, its walking bob, and its artwork.
   const helper = (name) => {
-    const y = name === "dog" ? GEO.dog.y : B[name].y;
-    const hs = name === "dog" ? GEO.dog.scale : B[name].scale;
-    const flip = name === "crawler" ? -hs : hs;
-    const inner = `<g transform="scale(${flip} ${hs})">${DRAW[name](false)}</g>`;
-    return `<g id="helper-${name}" transform="translate(${HELPER_X[name]} ${y})">${name === "dog" ? `<g id="dog-flip">${inner}</g>` : inner}</g>`;
+    const at = name === "dog" ? GEO.dog : name === "cat" ? GEO.pets.cat : B[name];
+    return `<g id="helper-${name}" transform="translate(${HELPER_X[name]} ${at.y})"><g id="${name}-flip"><g id="${name}-bob"><g transform="scale(${at.scale})">${DRAW[name](false)}</g></g></g></g>`;
   };
   const ring = Array.from({ length: 6 }, (_, i) => sparkle(Math.cos((i * Math.PI) / 3) * 17, Math.sin((i * Math.PI) / 3) * 17, i % 2 ? 3 : 4.5, C.beamCore)).join("");
   const glow = (r) => `<circle cx="0" cy="0" r="${r}" fill="url(#glow)"/>`;
@@ -664,16 +676,12 @@ function rigScene() {
   const designs = Array.from({ length: GEO.designs }, (_, d) => d);
   // Ceiling bulbs and the moonbeam are pooled: the game moves each to whichever bulb or window is in view.
   const bulbs = Array.from({ length: L.bulb.pool }, (_, i) => ({ ...L.bulb, id: `bulb-${i}`, angle: 90 }));
-  const moon = { id: "moon", x: L.moon.windows[0], ...L.moon };
-  const fixed = [...bulbs, moon];
-  const head = { x: heroX + L.head.dx, y: L.head.y };
+  const fixed = bulbs;
   const panes = (d) => WINDOWS[d].map(([x, y, w, h]) => `M${x} ${y} h${w} v${h} h${-w} Z`).join(" ");
-  const cat = GEO.cat;
-  // What sits on top of a place whatever the light: eyes in the dark, and the cat's collar.
+  // What sits on top of a place whatever the light: eyes in the dark, and the server room's blinking lights.
   const top = (d) =>
     d === 0
       ? `<g id="cat-eyes" transform="translate(138.250 212)"><ellipse cx="-3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/><ellipse cx="3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/></g>` +
-        `<g id="cat-collar" transform="translate(${cat.x} ${cat.y})"><rect x="-7" y="-2" width="14" height="4" rx="2" fill="${C.yellow}"/><circle cx="0" cy="3.500" r="2.200" fill="${C.yellowDeep}"/></g>` +
         `<g id="mouse-eyes" transform="translate(249 313)"><circle cx="-2" cy="0" r="0.900" fill="${C.beam}"/><circle cx="2" cy="0" r="0.900" fill="${C.beam}"/></g>`
       : d === 4
         ? [182, 208, 234, 260].flatMap((y, i) => [66, 140, 214].map((x, k) => `<circle cx="${x + (i % 2) * 8}" cy="${y}" r="1.600" fill="${(i + k) % 2 ? C.beam : C.blush}"/>`)).join("")
@@ -683,16 +691,13 @@ function rigScene() {
     `<defs><clipPath id="beam"><path id="beam-main" transform="translate(${hand.x} ${hand.y})" d="${wedge(B.main)}"/>` +
     beamed.map((n) => `<path id="beam-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})" d="${wedge(B[n])}"/>`).join("") +
     fixed.map((f) => `<path id="beam-${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle})" d="${wedge(f)}"/>`).join("") +
-    `<path id="beam-head" transform="translate(${head.x} ${head.y}) rotate(${L.head.angle})" d="${wedge(L.head)}"/>` +
-    `<path id="beam-lantern" transform="translate(${heroX} ${L.lantern.y})" d="${disc(L.lantern.radius)}"/>` +
     // Lightning: the whole view, slid into place for an instant.
     `<path id="beam-flash" transform="translate(-5000 0)" d="M0 0 H${GEO.width} V${GEO.height} H0 Z"/>` +
     `</clipPath>` +
     // The glass of each window. The skyline is clipped to these, and they slide with their places.
     `<clipPath id="glass">${Object.keys(WINDOWS).map((d) => `<path id="glass-${d}" transform="translate(${(d % 3) * SEG} 0)" d="${panes(d)}"/>`).join("")}</clipPath>` +
     `${hazeGradient("main", B.main.length / s, B.main.strength)}${beamed.map((n) => hazeGradient(n, B[n].length, B[n].strength)).join("")}` +
-    fixed.map((f) => hazeGradient(f.id, f.length, f.strength)).join("") + hazeGradient("head", L.head.length / s, L.head.strength) +
-    radial("glow", 12, 0.85) + radial("lantern-glow", L.lantern.radius, L.lantern.strength) + `</defs>` +
+    fixed.map((f) => hazeGradient(f.id, f.length, f.strength)).join("") + radial("glow", 12, 0.85) + `</defs>` +
     `<g id="room-dark">${designs.map((d) => place(d, segment(d, UNLIT, false, true), "dark")).join("")}</g>` +
     `<g id="room-lit" clip-path="url(#beam)">${designs.map((d) => place(d, segment(d, LIT, true, true), "lit")).join("")}<g id="motes">${MOTES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`).join("")}</g></g>` +
     `<g id="sky" clip-path="url(#glass)"><g id="sky-a">${skyline()}</g><g id="sky-b" transform="translate(${GEO.sky.period} 0)">${skyline()}</g></g>` +
@@ -710,12 +715,8 @@ function rigScene() {
     `<g id="mouse" transform="translate(-40 ${GEO.mouseY})">${mouse()}</g>` +
     helper("satellite") + helper("detective") +
     `<g id="hero" transform="translate(${heroX} ${FLOOR_Y})"><ellipse cx="0" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/>` +
-    `<g id="haze-lantern" transform="translate(0 ${L.lantern.y - FLOOR_Y})"><circle cx="0" cy="0" r="${L.lantern.radius}" fill="url(#lantern-glow)"/></g>` +
-    `<g id="hero-flip"><g id="hero-body"><g transform="scale(${s})">${searcher({ rig: wedge(B.main, s) })}` +
-    // The headlamp: a small lamp on the hood and its own little beam.
-    `<g id="headlamp" transform="translate(${L.head.dx / s} ${(L.head.y - FLOOR_Y) / s})"><g id="haze-head" transform="rotate(${L.head.angle})"><path d="${wedge(L.head, s)}" fill="url(#hz-head)"/></g><rect x="-6" y="-7" width="12" height="12" rx="4" fill="${C.slate}"/><circle cx="2" cy="-1" r="4" fill="${C.beamCore}"/></g>` +
-    `</g></g></g></g>` +
-    helper("intern") + helper("crawler") + helper("dog") +
+    `<g id="hero-flip"><g id="hero-body"><g transform="scale(${s})">${searcher({ rig: wedge(B.main, s) })}</g></g></g></g>` +
+    helper("intern") + helper("crawler") + helper("dog") + helper("cat") +
     `<g id="burst" transform="translate(${heroX} 200)"><circle cx="0" cy="0" r="12" stroke="${C.beamCore}" stroke-width="1.500"/>${ring}</g>` +
     `<g id="fore-a">${foreground()}</g><g id="fore-b" transform="translate(${GEO.fore.period} 0)">${foreground()}</g>`
   );
@@ -733,8 +734,8 @@ write("strip-lit.svg", svg(GEO.designs * SEG, GEO.height, strip(LIT, true)));
 write("skyline.svg", svg(GEO.sky.period, GEO.height, skyline()));
 
 for (const [name, draw] of Object.entries(FINDS)) write(`find-${name}.svg`, svg(80, 80, draw(LIT)));
-const cast = [[intern(), 80, 200], [crawler(), 250, 200], [dog(), 430, 200], [detective(), 610, 200]];
-write("sheet-helpers.svg", svg(900, 230, `<rect width="900" height="230" fill="#0A0A0C"/>` + cast.map(([b, x, y]) => g(`translate(${x} ${y})`, b)).join("") + g("translate(790 90)", satellite())));
+const cast = [[intern(), 80, 200], [crawler(), 250, 200], [dog(), 430, 200], [detective(), 610, 200], [petCat(), 760, 200]];
+write("sheet-helpers.svg", svg(1000, 230, `<rect width="1000" height="230" fill="#0A0A0C"/>` + cast.map(([b, x, y]) => g(`translate(${x} ${y})`, b)).join("") + g("translate(900 90)", satellite())));
 write("sheet-finds.svg", svg(800, 110, `<rect width="800" height="110" fill="${LIT.wall}"/>` + Object.keys(FINDS).map((n, i) => g(`translate(${10 + i * 100} 15)`, FINDS[n](LIT))).join("")));
 write("sheet-poses.svg", svg(600, 240, `<rect width="600" height="240" fill="#0A0A0C"/>` + g("translate(90 226)", searcher()) + g("translate(290 226)", searcher({ aim: -42, mood: "wow" })) + g("translate(490 226)", searcher({ aim: 16, mood: "happy" }))));
 console.log("wrote", out);

@@ -16,7 +16,7 @@ requestAnimationFrame ──► stepWorld (world.ts) ──► clues gained, eve
         │                      │                                    (Hire, Upgrade)
         │                      ▼
         └──────────► frameValues (paint.ts) ──► Rive view model "Game" ──► search-party.riv
-                                                 ~205 numbers, 6 booleans, 3 triggers
+                                                 ~200 numbers, 12 booleans, 3 triggers
                      localStorage "search-party:game" ◄── saved every 2s and on pagehide
 ```
 
@@ -35,43 +35,52 @@ geometry.json ──► art/build.mjs ──► art/svg/rive-scene.svg
 - **Clues are the only currency.** They buy everything in the shop. The eight finds unlock on clues collected over the whole game, and the page itself is not on the list.
 - **The walk** is an endless loop of eight places, each 390 wide: an office, a study, the 404 door, an archive, a server room, a break room, a corridor and a print room. The view is 1170 wide, so a wide screen shows three places and a phone shows a little over one.
 - **Status doors.** Each door carries a code and its own joke, visible only when lit: 404, a roped-off 403, a 500 with smoke under it, a 418 with a teapot outside, a padlocked 401, and a 503 with a "back soon" note. Other things to notice in the dark: a missing-cat poster, a lost-property box, a glove on a radiator, a jammed printer, a fish tank with a sunken temple, and someone asleep at a desk.
-- **Depth.** Three layers move at different speeds: a skyline that slides slowly behind the windows (0.35 of the walking speed), the rooms themselves, and dark shapes close to the camera (1.5 times).
-- **Glints.** Twenty-four glints sit on the walls in and just ahead of the view. One that slides out of view behind is replaced by a new one ahead, so walking keeps bringing more. A light has to rest on a glint to find it: 0.4 seconds under the searcher's torch (less with a Stronger bulb), 0.7 under any other light. Its glow grows steadily while it is being found and fades back if the light moves on. After it pops it comes back somewhere else four to ten seconds later.
+- **Depth.** Three layers move at different speeds: a skyline that slides slowly behind the windows (0.35 of the walking speed), the rooms themselves, and a few dark shapes along the top and bottom edges close to the camera (1.5 times).
+- **What the device shows.** A phone shows only the middle of the view. The scene tells the game which slice is on screen, and glints, the mouse and every event appear inside it, so nothing happens out of sight.
+- **Glints.** Twenty-four glints sit on the walls ahead of the searcher, on screen or just beyond. One that slides out of sight behind is replaced by a new one ahead, so walking keeps bringing more.
+- **Finding.** A light has to rest on a glint to find it: 0.4 seconds under the searcher's torch, less with a Stronger bulb. Its glow grows steadily while it is being found and fades back if the light moves on.
+- **Other lights help the torch, they don't race it.** While the torch is in use (a tap or drag in the last five seconds, or a finger held down), every other light and both pets only give glints a head start, up to 70%, and the torch finishes them at its full rate. Once nobody is playing, any light finds glints by resting on them for 0.7 seconds, at the lower rate, so the game still moves when it is only being watched.
 - **Walking.** Left alone the searcher ambles forward at 16px a second. A tap more than 150px ahead makes them hurry at 130px a second until it is in reach. A tap within reach, or behind, makes them stop and look at it, and a little over a second after the torch settles they amble on.
-- **Tapping and dragging.** A tap sets what the torch points at, and holding and dragging keeps moving it. The torch turns at a limited speed and eases in. It never passes straight down.
+- **Tapping, dragging and holding.** A tap sets what the torch points at, dragging keeps moving it, and a finger held still keeps it there. The torch turns at a limited speed and eases in. It never passes straight down.
 - **The beam** is a wedge that starts at the torch lens, 19px out from the hand. It is 14px wide either side there, so things close to the searcher are still easy to light, and 88px either side at its far end, 380px away.
-- **Facing.** Which way the searcher faces is judged from the body, not the hand, and only changes for a target at least 12 degrees to the other side of straight up. Turning round is instant and mirrors the torch with it. (Judging from the hand made a target overhead flip the facing forever, because the hand changes sides on every flip.)
-- **Left alone,** the torch drifts four degrees either side of where it stopped. Five seconds after the last tap it stops paying its bonus and finds things as slowly as any other light.
-- **Value.** A glint found by any other light pays one clue plus half of what the crew earns per second. One found by a torch in use pays three times that, plus once more per Stronger bulb level. The scoreboard shows both numbers, "+N a find" and "+N/s".
-- **Pace.** In a simulation, a player who always lights the nearest glint and buys the cheapest thing reaches the last find in about 11 minutes; one who only shops takes about 94.
+- **Facing.** Which way the searcher faces is judged from the body, not the hand, and only changes for a target at least 12 degrees to the other side of straight up. Turning round to look is instant and mirrors the torch with it. Afterwards the torch swings back over the top, and the searcher turns to face forward as it crosses.
+- **Value.** A glint pays one clue plus half of what the crew and pets earn per second. Found by the torch in use, it pays three times that, plus once more per Stronger bulb level. The scoreboard shows both numbers, "+N a find" and "+N/s".
+- **Pace.** In a simulation on a phone-sized window, a player who always lights the nearest glint and buys the cheapest thing reaches the last find in about 22 minutes; one who only shops takes about 70. At that point about 5.6M of the shop is still unsold, which is the last two satellite levels.
 - **A find** appears on the floor beside the searcher and is left behind as the walk goes on.
-- **Away time.** The crew's per-second earnings are credited for the time the page was closed, capped at eight hours.
-- **Start over.** A button at the bottom of the shop erases everything after one confirmation, and resets the room.
+- **Away time.** The crew's per-second earnings are credited for the time the page was closed or hidden, capped at eight hours.
+- **Start over.** A button at the bottom of the shop erases everything after one confirmation, and resets the walk.
 
 ### The shop
 
-Everything is bought one level at a time, and every level changes the picture.
+Nine rows, each with one job. Everything is bought one level at a time, and every level changes the picture.
 
-- **Your torch.** Wider lens (wider beam), Longer reach (longer beam, and a faster walk), Stronger bulb (a visibly brighter beam that finds faster and pays more), Headlamp (a second small light on the hood, pointing wherever the searcher faces), Lantern (a pool of light around the searcher).
-- **Crew.** Each helper is hired once and then levelled up. A level doubles what it earns per second and makes its light 20% bigger. The intern, robot, detective and satellite carry lights. The dog has none: it finds what is low on the wall above its nose, and runs down the mouse on its own. The detective's light also rummages stashes.
-- **The room.** Fix the bulbs (three levels: two, then four, then all five of the ceiling bulbs along the loop work, each lighting the floor under it), Befriend the cat (it gets a collar and finds what is near its box whenever the office comes round), Open the curtains (a moonbeam through whichever window is in view).
+- **Your torch.** Wider lens (a wider beam, five levels) and Stronger bulb (a visibly brighter beam that finds faster and pays more, six levels).
+- **Crew**, hired once and then levelled up to five. A level doubles what a helper earns per second and makes their light 15% bigger. The intern carries a phone light, the robot scans the wall ahead, the detective's light also rummages stashes, and the satellite throws a wide light from above.
+- **Pets**, the same way. The cat gives a head start to whatever is low on the wall near it, over a wider stretch with each level. The dog does the same above its nose and runs down the mouse.
+- **The rooms.** Fix the bulbs (three levels: two, then four, then all five ceiling bulbs along the loop work). A working bulb throws a short, soft cone that gives glints under it a head start.
+
+### The party
+
+- Everyone walks with the searcher in world space. The cat, dog, detective and intern follow in a line behind, the robot scuttles ahead, and the satellite drifts overhead.
+- Each keeps a set distance from the searcher, walks at up to 150px a second to keep it, faces the way it moves, and steps while it moves: legs swing on the intern, detective, dog and cat, and the robot bobs.
+- The dog breaks away to chase the mouse and comes back to heel.
 
 ### Events
 
 - **Stashes.** Every place has two marked spots. One pays 12 glints after 0.8 seconds under the torch or the detective's light, and is ready again 40 seconds later.
-- **The mouse** runs across the view along the skirting board every 25 to 45 seconds. Any light catches it for 15 glints, and so does the dog.
-- Every 30 to 50 seconds one of these happens, and the scoreboard says so for four seconds:
-  - **Lightning.** The whole room is lit for two quick flashes and every glint gets a 60% head start.
-  - **The cat knocks something over.** Six glints spill out beside its box. This only happens while the office is in view.
-  - **A moth** flies to the far end of the searcher's beam. Hold the beam on it for 1.2 seconds for 20 glints.
-  - **The phone rings** for seven seconds. Any light on it pays 25 glints. This only happens while a desk phone is near the middle of the view.
-  - **A draught.** Five loose sheets blow in from ahead, each worth 4 glints to any light.
+- **The mouse** runs across what the device shows, along the skirting board, every 25 to 45 seconds. The torch catches it for 15 glints, and so does the dog.
+- Every 30 to 50 seconds one of these happens, and the scoreboard says so. Lines queue, so one never wipes out another.
+  - **Lightning.** The view is lit for two quick flashes and every glint on screen is found.
+  - **The cat knocks something over.** Up to six glints spill out beside the office cat's box, taken from ones that were off screen or waiting to come back. This only happens while the box is fully on screen.
+  - **A moth** flies to the far end of the searcher's beam. Holding the beam on it for 1.2 seconds pays 20 glints. A torch nobody is pointing still catches it after four seconds.
+  - **The phone rings** for seven seconds. Only the searcher's torch answers it, for 25 glints. This only happens while a desk phone is on screen.
+  - **A draught.** Five loose sheets blow in from the right edge of the screen, each worth 4 glints to any light.
   - **"The page!"** Rarely, one large sheet drifts across. Only the searcher's torch catches it, for 40 glints, and it turns out to be something else.
 
 ### State
 
 - `Economy` (clues, lifetime clues, a level for every shop item, save time) is the saved game.
-- `World` (how far the walk has gone, the searcher, the glints, stash timers, the mouse, the dog and whatever event is running) is not saved. Everything in it is in world space, where x keeps growing as the searcher walks. A visit starts with a fresh room.
+- `World` (how far the walk has gone, which slice the device shows, the searcher, the party, the glints, stash timers, the mouse and whatever event is running) is not saved. Everything in it is in world space, where x keeps growing as the searcher walks. A visit starts with a fresh room.
 - Both live in a ref and advance every animation frame. The economy is copied into React state ten times a second for the interface. The room never advances more than 50ms in one frame, so a beam can't skip over a glint.
 - All rules are pure functions in `game.ts`, `beams.ts` and `world.ts`, which run without React. Helper paths depend only on the clock, so the game logic and the drawing always agree.
 
@@ -83,21 +92,21 @@ Everything is bought one level at a time, and every level changes the picture.
 - The whole scene is one button. A pointer press targets that point and a drag keeps targeting. A keyboard press targets a random point.
 - Shop buttons are 44px tall and disabled when a purchase is not affordable.
 - The scene is a dark room in both themes; in light mode it reads as a dark window.
-- **Reduced motion.** The beams and the walk still move, because they are the game. The camera snaps instead of easing, and the decorative reactions (tap squash, find hop, object shake) are not triggered. The file's ambient loop still runs.
+- **Reduced motion.** The beams and the walk still move, because they are the game. The camera follows without easing, and the decorative reactions (tap squash, find hop) are not triggered. The file's ambient loop still runs.
 - There is no API and no control panel. The tuning constants are in `data.ts`.
 
 ### Rive file contract
 
 - Artboard `Scene`, 1170×380: one view of the walk. State machine `Game`. View model `Game`, bound to the artboard. `art/rig.mjs` holds the full property list.
 - Angles are in degrees (Rive attaches its own "Degrees to Radians" converter). Scales are percentages, so a mirrored sprite is `-100` and a hidden one is `0`. Opacity is 0 to 1.
-- Searcher: `heroX`, `facing`, `aim` (the torch inside the searcher's own space), `walking`. Beam: `beamX`, `beamAngle`, `beamWide`, `beamLong`, `beamBright`. Headlamp: `headX`, `headAim`, `headSize`. Lantern: `lantern`.
+- Searcher: `heroX`, `facing`, `aim` (the torch inside the searcher's own space), `walking`. Beam: `beamX`, `beamAngle`, `beamWide`, `beamLong`, `beamBright`.
 - Places and layers: `seg0x` to `seg7x` (the left edge of each place on screen), `skyAx`, `skyBx`, `foreAx`, `foreBx`.
-- Room lights: `bulb0` and `bulb0x` to `bulb3…`, `moon`, `moonX`, `moonAim`. Lightning slides a room-sized clip into view with `flashX`.
-- Helpers: a boolean each (`intern`, `crawler`, `dog`, `detective`, `satellite`), plus `<name>X`, `<name>BeamX`, `<name>Aim` and `<name>Size`, and `dogX` and `dogDir`. A helper that isn't hired has its light parked far off the artboard.
+- Room lights: `bulb0` and `bulb0x` to `bulb3…`. Lightning slides a room-sized clip into view with `flashX`.
+- The party: a boolean each (`intern`, `crawler`, `detective`, `satellite`, `dog`, `cat`) and `<name>X`. Those on the ground also have `<name>Dir` and a `<name>Walking` boolean. Those with lights also have `<name>BeamX`, `<name>Aim` and `<name>Size`. A helper that isn't hired has its light parked far off the artboard.
 - Glints: `g0x`, `g0y`, `g0s` (size) and `g0c` (glow) to `g23…`. Stashes: `stash0x`, `stash0y`, `stash0` and `stash0c` to `stash7…`. Mouse: `mouseX`, `mouseDir`. Finds: `find` from 0 to 8, placed by `findX`.
-- Event sprites: `mothX`, `mothY`; `alertX`, `alertY`, `alertS` (the ringing phone); `p0x`, `p0y`, `p0s` to `p4…` (loose sheets); `catCollar`.
+- Event sprites: `mothX`, `mothY`; `alertX`, `alertY`, `alertS` (the ringing phone); `p0x`, `p0y`, `p0s` to `p4…` (loose sheets).
 - Triggers: `tap`, `found`, `burst` (placed by `burstX` and `burstY`).
-- Every room object exists twice, unlit and lit. The lit copy is clipped by one shape that holds every light: the torch, four crew wedges, four pooled bulbs, the moon, the headlamp, the lantern disc and the lightning rectangle. The skyline is clipped by a second shape, the glass of the windows, which slides with them, so every light reveals it.
+- Every room object exists twice, unlit and lit. The lit copy is clipped by one shape that holds every light: the torch, four crew wedges, four pooled bulbs and the lightning rectangle. The skyline is clipped by a second shape, the glass of the windows, which slides with them, so every light reveals it.
 
 ### Working with the Rive MCP
 
@@ -106,6 +115,7 @@ Everything is bought one level at a time, and every level changes the picture.
 - SVG import keeps group ids as layer names, gradients, group opacity and `clip-path`, which becomes a real clipping shape. Several paths in one `clipPath` become one shape with a movable node per path.
 - Import puts each group's origin at the centre of its bounding box. `repivot` in `art/rig.mjs` moves the origin to a chosen point and shifts the children back.
 - A bound x is measured from the parent's origin, and import puts a container's origin at the middle of its contents. The rig moves the containers that hold sliding things to the artboard's corner, so a bound x is a place on screen.
+- The view model cannot be pruned through the MCP, so it still holds properties from earlier versions that nothing reads (the headlamp, lantern, moonbeam and shake triggers).
 - Rive's computed world positions are empty until the editor has drawn a frame, which it may not do in the background. `repivot` works positions out from the layer hierarchy instead.
 - To rebuild after changing the art: `node art/build.mjs`, then with a Rive file open that has the `Game` view model, `node art/rig.mjs import pivots model binds timelines machine names export`.
 
@@ -121,9 +131,10 @@ SearchParty (page.tsx)
 ├── Scene        (button > canvas, Rive)
 ├── Scoreboard
 └── Shop
-    ├── "Your torch" > Row × 5
-    ├── "Crew" > Row × 5
-    ├── "The room" > Row × 3
+    ├── "Your torch" > Row × 2
+    ├── "Crew" > Row × 4
+    ├── "Pets" > Row × 2
+    ├── "The rooms" > Row × 1
     └── StartOver
 ```
 
