@@ -430,7 +430,9 @@ function desk(t) {
     // an old monitor with a question mark on it
     `<rect x="44" y="254" width="16" height="8" fill="${t.shade}"/><rect x="28" y="218" width="48" height="38" rx="5" fill="${t.base}"/><rect x="33" y="223" width="38" height="26" rx="3" fill="${t.dark}"/>` +
     `<path d="M48 231 a4 4 0 1 1 5.500 3.700 q-1.500 0.800 -1.500 3" stroke="${t.pop}" stroke-width="2" stroke-linecap="round"/><circle cx="52" cy="242.500" r="1.300" fill="${t.pop}"/>` +
-    `<rect x="24" y="258" width="34" height="4" rx="1" fill="${t.hi}"/><rect x="92" y="250" width="10" height="12" rx="2" fill="${t.pop}"/>`
+    `<rect x="24" y="258" width="34" height="4" rx="1" fill="${t.hi}"/><rect x="92" y="250" width="10" height="12" rx="2" fill="${t.pop}"/>` +
+    // a desk phone
+    `<rect x="6" y="254" width="20" height="8" rx="2" fill="${t.shade}"/><rect x="4" y="249" width="24" height="6" rx="3" fill="${t.line}"/>`
   );
 }
 
@@ -484,15 +486,23 @@ function mouse() {
   return `<ellipse cx="0" cy="0" rx="6" ry="3.500" fill="${C.creamShade}"/><circle cx="6" cy="-1" r="2.600" fill="${C.creamShade}"/><circle cx="7" cy="-3.500" r="1.500" fill="${C.blush}"/><circle cx="7.500" cy="-1.400" r="0.600" fill="${C.ink}"/><path d="M-6 0 q-6 0 -8 -4" stroke="${C.creamShade}" stroke-width="1"/>`;
 }
 
-// A beam is a wedge from a point along the x axis, `near` wide either side where it starts and `far` at its end.
+// A beam is a wedge along the x axis. It is `near` wide either side where it starts and `far` at its end, and it can
+// start a little way out from its pivot, so the searcher's beam leaves the torch lens and not the hand.
 // The same wedge clips the lit room and draws the haze.
-const wedge = (b, scale = 1) => `M0 ${-b.near / scale} L${b.length / scale} ${-b.far / scale} L${b.length / scale} ${b.far / scale} L0 ${b.near / scale} Z`;
+const wedge = (b, scale = 1) => {
+  const start = (b.start ?? 0) / scale;
+  return `M${start} ${-b.near / scale} L${b.length / scale} ${-b.far / scale} L${b.length / scale} ${b.far / scale} L${start} ${b.near / scale} Z`;
+};
+const disc = (r) => `M${r} 0 A${r} ${r} 0 1 1 ${-r} 0 A${r} ${r} 0 1 1 ${r} 0 Z`;
 const hazeGradient = (id, len, strength) =>
   `<linearGradient id="hz-${id}" x1="0" y1="0" x2="${len}" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beam}" stop-opacity="${strength}"/><stop offset="1" stop-color="${C.beam}" stop-opacity="0.03"/></linearGradient>`;
+const radial = (id, r, inner, outer = 0) =>
+  `<radialGradient id="${id}" cx="0" cy="0" r="${r}" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beamCore}" stop-opacity="${inner}"/><stop offset="1" stop-color="${C.beam}" stop-opacity="${outer}"/></radialGradient>`;
 
 const HERO = GEO.hero;
 const FLOOR_Y = GEO.floor;
 const B = GEO.beams;
+const L = GEO.lights;
 // Where each helper stands when the file is imported. The game moves them afterwards.
 const HELPER_X = { satellite: 500, detective: 30, intern: 420, crawler: 700, dog: 200 };
 const HELPER_AIM = { intern: -30, crawler: -150, detective: -15, satellite: 80 };
@@ -500,6 +510,15 @@ const DRAW = { intern, crawler, detective, satellite, dog };
 // Scattered start positions for glints and dust, from a fixed sequence so the file is the same on every run.
 const scatter = (count, seed) => Array.from({ length: count }, (_, i) => [16 + ((seed * 97 + i * 211) % (GEO.width - 32)), 20 + ((seed * 53 + i * 137) % 340)]);
 const MOTES = scatter(54, 3).map(([x, y], i) => [x, Math.min(300, y), 0.9 + (i % 4) * 0.2]);
+
+function moth() {
+  return `<g id="moth-wings"><path d="M0 0 C-9 -9 -13 -2 -9 3 C-6 6 -2 4 0 0 Z M0 0 C9 -9 13 -2 9 3 C6 6 2 4 0 0 Z" fill="${C.cream}"/><circle cx="-6" cy="-1" r="1.300" fill="${C.slateLight}"/><circle cx="6" cy="-1" r="1.300" fill="${C.slateLight}"/></g><ellipse cx="0" cy="0.500" rx="1.600" ry="4" fill="${C.slateDark}"/>`;
+}
+
+// A loose sheet of paper. One of these, drawn larger, is "the page".
+function sheet() {
+  return `<path d="M-7 -9 h10 l4 4 v14 h-14 z" fill="${C.cream}"/><path d="M3 -9 v4 h4 z" fill="${C.creamShade}"/><path d="M-4 -2 h8 M-4 2 h8 M-4 6 h5" stroke="${C.slateLight}" stroke-width="1.200" stroke-linecap="round"/>`;
+}
 
 // ───────────────────────── The scene as Rive imports it ─────────────────────────
 // Ids become layer names in Rive. Anything that moves sits in its own group, translated to its pivot,
@@ -518,24 +537,46 @@ function rigScene() {
   };
   const ring = Array.from({ length: 6 }, (_, i) => sparkle(Math.cos((i * Math.PI) / 3) * 17, Math.sin((i * Math.PI) / 3) * 17, i % 2 ? 3 : 4.5, C.beamCore)).join("");
   const glow = (r) => `<circle cx="0" cy="0" r="${r}" fill="url(#glow)"/>`;
+  // A dark disc behind every marker, so it still reads when the wall behind it is lit.
+  const backing = (r) => `<circle cx="0" cy="0" r="${r}" fill="#000000" fill-opacity="0.5"/>`;
+  // Lights that belong to the room: three ceiling bulbs and the moon through the window. Each is a clip path and a haze.
+  const fixed = [...L.bulbs.map((bulb, i) => ({ id: `bulb-${i}`, x: bulb.x, y: bulb.y, angle: 90, ...L.bulb })), { id: "moon", ...L.moon }];
+  const head = { x: HERO.x + L.head.dx, y: L.head.y };
   return (
     `<defs><clipPath id="beam"><path id="beam-main" transform="translate(${hand.x} ${hand.y})" d="${wedge(B.main)}"/>` +
     beamed.map((n) => `<path id="beam-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})" d="${wedge(B[n])}"/>`).join("") +
+    fixed.map((f) => `<path id="beam-${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle})" d="${wedge(f)}"/>`).join("") +
+    `<path id="beam-head" transform="translate(${head.x} ${head.y}) rotate(${L.head.angle})" d="${wedge(L.head)}"/>` +
+    `<path id="beam-lantern" transform="translate(${HERO.x} ${L.lantern.y})" d="${disc(L.lantern.radius)}"/>` +
+    // Lightning: the whole room, slid into view for an instant.
+    `<path id="beam-flash" transform="translate(-5000 0)" d="M0 0 H${GEO.width} V${GEO.height} H0 Z"/>` +
     `</clipPath>${hazeGradient("main", B.main.length / s, B.main.strength)}${beamed.map((n) => hazeGradient(n, B[n].length, B[n].strength)).join("")}` +
-    `<radialGradient id="glow" cx="0" cy="0" r="12" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${C.beamCore}" stop-opacity="0.85"/><stop offset="1" stop-color="${C.beam}" stop-opacity="0"/></radialGradient></defs>` +
+    fixed.map((f) => hazeGradient(f.id, f.length, f.strength)).join("") + hazeGradient("head", L.head.length / s, L.head.strength) +
+    radial("glow", 12, 0.85) + radial("lantern-glow", L.lantern.radius, L.lantern.strength) + `</defs>` +
     `<g id="room-dark">${room(UNLIT, false, "dark")}</g>` +
     `<g id="room-lit" clip-path="url(#beam)">${room(LIT, true, "lit")}<g id="motes">${MOTES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`).join("")}</g></g>` +
     `<g id="cat-eyes" transform="translate(138.250 212)"><ellipse cx="-3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/><ellipse cx="3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/></g>` +
+    `<g id="cat-collar" transform="translate(${GEO.cat.x} ${GEO.cat.y})"><rect x="-7" y="-2" width="14" height="4" rx="2" fill="${C.yellow}"/><circle cx="0" cy="3.500" r="2.200" fill="${C.yellowDeep}"/></g>` +
     `<g id="mouse-eyes" transform="translate(249 313)"><circle cx="-2" cy="0" r="0.900" fill="${C.beam}"/><circle cx="2" cy="0" r="0.900" fill="${C.beam}"/></g>` +
     `<g id="spider" transform="translate(48 48)">${spiderOnThread(UNLIT, 0, 0)}</g>` +
+    fixed.map((f) => `<g id="haze-${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle})"><path d="${wedge(f)}" fill="url(#hz-${f.id})"/></g>`).join("") +
     beamed.map((n) => `<g id="haze-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})"><path d="${wedge(B[n])}" fill="url(#hz-${n})"/></g>`).join("") +
     Object.entries(FINDS).map(([name, draw]) => `<g id="find-${name}" transform="translate(${HERO.x + 60} ${FLOOR_Y})"><g transform="translate(-22.400 -43) scale(0.56)">${draw(LIT)}</g></g>`).join("") +
     `<g id="sparkles" transform="translate(${HERO.x + 60} ${FLOOR_Y - 24})">${sparkle(-28, -18, 5, C.beamCore) + sparkle(28, -6, 3.5, C.beamCore) + sparkle(8, -30, 2.6, C.beamCore)}</g>` +
-    GEO.stashes.map((st, i) => `<g id="stash-${i}" transform="translate(${st.x} ${st.y})"><g id="stash-glow-${i}">${glow(16)}</g><circle cx="0" cy="0" r="10" stroke="${C.beamCore}" stroke-opacity="0.55" stroke-width="1.200"/>${sparkle(0, 0, 6, C.beamCore)}</g>`).join("") +
-    scatter(GEO.glints, 7).map(([x, y], i) => `<g id="glint-${i}" transform="translate(${x} ${y})"><g id="glow-${i}">${glow(12)}</g>${sparkle(0, 0, 3.6, C.beamCore)}</g>`).join("") +
+    GEO.stashes.map((st, i) => `<g id="stash-${i}" transform="translate(${st.x} ${st.y})">${backing(13)}<g id="stash-glow-${i}">${glow(16)}</g><circle cx="0" cy="0" r="10" stroke="${C.beamCore}" stroke-opacity="0.8" stroke-width="1.400"/>${sparkle(0, 0, 6, C.beamCore)}</g>`).join("") +
+    scatter(GEO.glints, 7).map(([x, y], i) => `<g id="glint-${i}" transform="translate(${x} ${y})">${backing(5.5)}<g id="glow-${i}">${glow(12)}</g>${sparkle(0, 0, 3.6, C.beamCore)}</g>`).join("") +
+    // Something that needs a light on it quickly: the ringing phone.
+    `<g id="alert" transform="translate(${GEO.phone.x} ${GEO.phone.y})">${backing(13)}<circle cx="0" cy="0" r="10" stroke="${C.yellow}" stroke-width="1.800"/><path d="M0 -5 v6" stroke="${C.yellow}" stroke-width="2.400" stroke-linecap="round"/><circle cx="0" cy="4.500" r="1.400" fill="${C.yellow}"/></g>` +
+    Array.from({ length: GEO.pages }, (_, i) => `<g id="page-${i}" transform="translate(${GEO.door.x - i * 22} ${GEO.door.y})">${sheet()}</g>`).join("") +
+    `<g id="moth" transform="translate(${HERO.x + 120} 120)">${moth()}</g>` +
     `<g id="mouse" transform="translate(-40 ${GEO.mouseY})">${mouse()}</g>` +
     helper("satellite") + helper("detective") +
-    `<g id="hero" transform="translate(${HERO.x} ${FLOOR_Y})"><ellipse cx="0" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/><g id="hero-flip"><g id="hero-body"><g transform="scale(${s})">${searcher({ rig: wedge(B.main, s) })}</g></g></g></g>` +
+    `<g id="hero" transform="translate(${HERO.x} ${FLOOR_Y})"><ellipse cx="0" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/>` +
+    `<g id="haze-lantern" transform="translate(0 ${L.lantern.y - FLOOR_Y})"><circle cx="0" cy="0" r="${L.lantern.radius}" fill="url(#lantern-glow)"/></g>` +
+    `<g id="hero-flip"><g id="hero-body"><g transform="scale(${s})">${searcher({ rig: wedge(B.main, s) })}` +
+    // The headlamp: a small lamp on the hood and its own little beam.
+    `<g id="headlamp" transform="translate(${L.head.dx / s} ${(L.head.y - FLOOR_Y) / s})"><g id="haze-head" transform="rotate(${L.head.angle})"><path d="${wedge(L.head, s)}" fill="url(#hz-head)"/></g><rect x="-6" y="-7" width="12" height="12" rx="4" fill="${C.slate}"/><circle cx="2" cy="-1" r="4" fill="${C.beamCore}"/></g>` +
+    `</g></g></g></g>` +
     helper("intern") + helper("crawler") + helper("dog") +
     `<g id="burst" transform="translate(${HERO.x} 200)"><circle cx="0" cy="0" r="12" stroke="${C.beamCore}" stroke-width="1.500"/>${ring}</g>`
   );

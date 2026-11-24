@@ -2,23 +2,169 @@
   "width": 1170,
   "height": 380,
   "floor": 318,
-  "hero": { "x": 300, "scale": 0.56, "handX": 28, "handY": 270.96, "minX": 40, "maxX": 1130 },
-  "beams": {
-    "main": { "length": 380, "near": 14, "far": 88, "strength": 0.42 },
-    "intern": { "y": 372, "scale": 0.4, "dx": 16, "oy": 325.2, "length": 230, "near": 2, "far": 34, "strength": 0.15 },
-    "crawler": { "y": 374, "scale": 0.42, "dx": -11, "oy": 358, "length": 250, "near": 2, "far": 34, "strength": 0.15 },
-    "detective": { "y": 366, "scale": 0.4, "dx": 9.2, "oy": 310.8, "length": 340, "near": 2, "far": 30, "strength": 0.2 },
-    "satellite": { "y": 64, "scale": 0.42, "dx": 2, "oy": 73, "length": 300, "near": 2, "far": 70, "strength": 0.22 }
+  "hero": {
+    "x": 300,
+    "scale": 0.56,
+    "handX": 28,
+    "handY": 270.96,
+    "minX": 40,
+    "maxX": 1130
   },
-  "dog": { "y": 374, "scale": 0.46, "reach": 30, "low": 215 },
+  "beams": {
+    "main": {
+      "length": 380,
+      "near": 14,
+      "far": 88,
+      "strength": 0.42,
+      "start": 19
+    },
+    "intern": {
+      "y": 372,
+      "scale": 0.4,
+      "dx": 16,
+      "oy": 325.2,
+      "length": 230,
+      "near": 2,
+      "far": 34,
+      "strength": 0.15
+    },
+    "crawler": {
+      "y": 374,
+      "scale": 0.42,
+      "dx": -11,
+      "oy": 358,
+      "length": 250,
+      "near": 2,
+      "far": 34,
+      "strength": 0.15
+    },
+    "detective": {
+      "y": 366,
+      "scale": 0.4,
+      "dx": 9.2,
+      "oy": 310.8,
+      "length": 340,
+      "near": 2,
+      "far": 30,
+      "strength": 0.2
+    },
+    "satellite": {
+      "y": 64,
+      "scale": 0.42,
+      "dx": 2,
+      "oy": 73,
+      "length": 300,
+      "near": 2,
+      "far": 70,
+      "strength": 0.22
+    }
+  },
+  "dog": {
+    "y": 374,
+    "scale": 0.46,
+    "reach": 30,
+    "low": 215
+  },
   "stashes": [
-    { "object": "cabinet", "x": 43, "y": 222, "pivotX": 43 },
-    { "object": "boxes", "x": 126, "y": 258, "pivotX": 128 },
-    { "object": "bookcase", "x": 452, "y": 226, "pivotX": 452 },
-    { "object": "desk", "x": 662, "y": 240, "pivotX": 670 },
-    { "object": "crates", "x": 1034, "y": 262, "pivotX": 1034 },
-    { "object": "plant", "x": 1142, "y": 262, "pivotX": 1142 }
+    {
+      "object": "cabinet",
+      "x": 43,
+      "y": 222,
+      "pivotX": 43
+    },
+    {
+      "object": "boxes",
+      "x": 126,
+      "y": 258,
+      "pivotX": 128
+    },
+    {
+      "object": "bookcase",
+      "x": 452,
+      "y": 226,
+      "pivotX": 452
+    },
+    {
+      "object": "desk",
+      "x": 662,
+      "y": 240,
+      "pivotX": 670
+    },
+    {
+      "object": "crates",
+      "x": 1034,
+      "y": 262,
+      "pivotX": 1034
+    },
+    {
+      "object": "plant",
+      "x": 1142,
+      "y": 262,
+      "pivotX": 1142
+    }
   ],
   "glints": 36,
-  "mouseY": 313
+  "mouseY": 313,
+  "lights": {
+    "head": {
+      "dx": 19,
+      "y": 222,
+      "angle": 6,
+      "length": 150,
+      "near": 5,
+      "far": 42,
+      "strength": 0.3
+    },
+    "lantern": {
+      "y": 282,
+      "radius": 46,
+      "strength": 0.3
+    },
+    "bulbs": [
+      {
+        "x": 205,
+        "y": 36
+      },
+      {
+        "x": 585,
+        "y": 36
+      },
+      {
+        "x": 965,
+        "y": 36
+      }
+    ],
+    "bulb": {
+      "length": 286,
+      "near": 10,
+      "far": 100,
+      "strength": 0.2
+    },
+    "moon": {
+      "x": 292,
+      "y": 140,
+      "angle": 62,
+      "swing": 12,
+      "length": 300,
+      "near": 34,
+      "far": 70,
+      "strength": 0.16
+    }
+  },
+  "phone": {
+    "x": 626,
+    "y": 250
+  },
+  "cat": {
+    "x": 138,
+    "y": 222,
+    "left": 60,
+    "right": 215,
+    "low": 170
+  },
+  "door": {
+    "x": 860,
+    "y": 296
+  },
+  "pages": 5
 }

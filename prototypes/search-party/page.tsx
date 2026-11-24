@@ -14,8 +14,8 @@ export default function SearchParty() {
         <Scene onAim={game.aim} setPainter={game.setPainter} />
       </div>
       <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
-        <Scoreboard state={game.state} />
-        <Shop state={game.state} onHire={game.hire} onUpgrade={game.upgrade} onRestart={game.restart} />
+        <Scoreboard state={game.state} notice={game.notice} />
+        <Shop state={game.state} onBuy={game.buy} onRestart={game.restart} />
       </div>
     </div>
   );

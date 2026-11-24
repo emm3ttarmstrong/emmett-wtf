@@ -98,6 +98,14 @@ const PROPERTIES = [
   ...Array.from({ length: GEO.glints }, (_, i) => [P(`g${i}x`, "number"), P(`g${i}y`, "number"), P(`g${i}s`, "number"), P(`g${i}c`, "number")]).flat(),
   ...GEO.stashes.flatMap((_, i) => [P(`stash${i}`, "number"), P(`stash${i}c`, "number"), P(`shake${i}`, "trigger")]),
   P("findX", "number"),
+  // The torch's reach and brightness, the headlamp and the lantern.
+  P("beamLong", "number"), P("beamBright", "number"), P("headX", "number"), P("headAim", "number"), P("headSize", "number"), P("lantern", "number"),
+  // Lights that belong to the room, and lightning.
+  ...GEO.lights.bulbs.map((_, i) => P(`bulb${i}`, "number")), P("moon", "number"), P("moonAim", "number"), P("flashX", "number"),
+  // How big each helper's light has grown.
+  ...BEAMED.map((n) => P(`${n}Size`, "number")),
+  P("catCollar", "number"), P("mothX", "number"), P("mothY", "number"), P("alertX", "number"), P("alertY", "number"), P("alertS", "number"),
+  ...Array.from({ length: GEO.pages }, (_, i) => [P(`p${i}x`, "number"), P(`p${i}y`, "number"), P(`p${i}s`, "number")]).flat(),
 ];
 
 async function model() {
@@ -134,6 +142,18 @@ const stages = {
       await at(`haze-${name}`, HELPER_X[name] + b.dx, b.oy);
     }
     await at("mouse", -40, GEO.mouseY);
+    // The haze has to stretch from the torch, not from its own middle.
+    await at("haze", HAND.x, HAND.y);
+    const L = GEO.lights;
+    for (const [i, bulb] of L.bulbs.entries()) for (const part of ["beam", "haze"]) await at(`${part}-bulb-${i}`, bulb.x, bulb.y);
+    for (const part of ["beam", "haze"]) await at(`${part}-moon`, L.moon.x, L.moon.y);
+    for (const name of ["beam-head", "headlamp", "haze-head"]) await at(name, HERO.x + L.head.dx, L.head.y);
+    for (const part of ["beam", "haze"]) await at(`${part}-lantern`, HERO.x, L.lantern.y);
+    await at("beam-flash", -5000, 0);
+    await at("cat-collar", GEO.cat.x, GEO.cat.y);
+    for (const name of ["moth", "moth-wings"]) await at(name, HERO.x + 120, 120);
+    await at("alert", GEO.phone.x, GEO.phone.y);
+    for (let i = 0; i < GEO.pages; i++) await at(`page-${i}`, GEO.door.x - i * 22, GEO.door.y);
     await at("burst", HERO.x, 200);
     for (const name of SHAKES) for (const tone of ["dark", "lit"]) await at(`${name}-${tone}`, SHAKE_PIVOT[name], GEO.floor);
     return done.map((d) => `${d.name} ${d.moved}`);
@@ -161,6 +181,38 @@ const stages = {
     await bind("beam-main", K.x, "beamX");
     await bind("beam-main", K.r, "beamAngle");
     await bind("beam-main", K.sy, "beamWide");
+    await bind("beam-main", K.sx, "beamLong");
+    await bind("haze", K.sx, "beamLong", "Shape");
+    await bind("haze", K.opacity, "beamBright", "Shape");
+    const both = async (object, name) => {
+      await bind(object, K.sx, name);
+      await bind(object, K.sy, name);
+    };
+    await bind("beam-head", K.x, "headX");
+    await bind("beam-head", K.r, "headAim");
+    await both("beam-head", "headSize");
+    await both("headlamp", "headSize");
+    await bind("beam-lantern", K.x, "heroX");
+    await both("beam-lantern", "lantern");
+    await both("haze-lantern", "lantern");
+    for (let i = 0; i < GEO.lights.bulbs.length; i++) for (const part of ["beam", "haze"]) await both(`${part}-bulb-${i}`, `bulb${i}`);
+    for (const part of ["beam", "haze"]) {
+      await both(`${part}-moon`, "moon");
+      await bind(`${part}-moon`, K.r, "moonAim");
+    }
+    await bind("beam-flash", K.x, "flashX");
+    for (const name of BEAMED) for (const part of ["beam", "haze"]) await both(`${part}-${name}`, `${name}Size`);
+    await both("cat-collar", "catCollar");
+    await bind("moth", K.x, "mothX");
+    await bind("moth", K.y, "mothY");
+    await bind("alert", K.x, "alertX");
+    await bind("alert", K.y, "alertY");
+    await both("alert", "alertS");
+    for (let i = 0; i < GEO.pages; i++) {
+      await bind(`page-${i}`, K.x, `p${i}x`);
+      await bind(`page-${i}`, K.y, `p${i}y`);
+      await both(`page-${i}`, `p${i}s`);
+    }
     for (const name of BEAMED) {
       for (const part of ["beam", "haze"]) {
         await bind(`${part}-${name}`, K.x, `${name}BeamX`);
@@ -223,7 +275,7 @@ async function timeline(name, frames, loop, keys) {
 
 stages.timelines = async () => {
   const id = {};
-  const nodes = ["hero", "hero-body", "leg-l", "leg-r", "blink", "face-smile", "face-wow", "face-happy", "sparkles", "cat-eyes", "spider", "motes", "mouse-eyes", "beam-main", "burst",
+  const nodes = ["moth-wings", "hero", "hero-body", "leg-l", "leg-r", "blink", "face-smile", "face-wow", "face-happy", "sparkles", "cat-eyes", "spider", "motes", "mouse-eyes", "beam-main", "burst",
     ...FINDS.map((n) => `find-${n}`), ...HELPERS.map((n) => `helper-${n}`), ...BEAMED.map((n) => `haze-${n}`), ...SHAKES.flatMap((n) => [`${n}-dark`, `${n}-lit`])];
   for (const n of nodes) id[n] = await idOf(n);
   const base = async (n, key) => (await values(id[n], [key]))[key];
@@ -284,6 +336,8 @@ stages.timelines = async () => {
     ]));
   }
 
+  done.push(await timeline("flap", 10, true, [[id["moth-wings"], K.sx, 0, 100], [id["moth-wings"], K.sx, 5, 35], [id["moth-wings"], K.sx, 10, 100]]));
+
   done.push(await timeline("burst-rest", 1, false, [[id.burst, K.opacity, 0, 0, "hold"]]));
   done.push(await timeline("burst-go", 26, false, [
     [id.burst, K.opacity, 0, 100, "linear"], [id.burst, K.opacity, 10, 100, "linear"], [id.burst, K.opacity, 24, 0, "hold"],
@@ -319,6 +373,7 @@ stages.machine = async () => {
     { name: "Find", states: Array.from({ length: FINDS.length + 1 }, (_, i) => state(`find-${i}`)), otherTransitions: [[ENTRY, "find-0"], ...Array.from({ length: FINDS.length + 1 }, (_, i) => [ANY, `find-${i}`])] },
     ...HELPERS.map((n) => toggle(n, `${n}-hidden`, `${n}-in`)),
     oneShot("Burst", "burst-rest", "burst-go"),
+    { name: "Flap", states: [state("flap")], otherTransitions: [[ENTRY, "flap"]] },
     ...SHAKES.map((_, i) => oneShot(`Shake ${i}`, `shake-${i}-rest`, `shake-${i}-go`)),
   ].map((l) => ({ ...l, otherTransitions: l.otherTransitions.map(([from, to]) => ({ from, to })) }));
   await cmd("animation_editor", "createStateMachineLayers", { stateMachineId: machine, layers });

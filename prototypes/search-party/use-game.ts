@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AWAY_LIMIT_SECONDS, STORAGE_KEY } from "./data";
-import { catchUp, earn, findsSoFar, hire, newGame, perSecond, restore, upgrade } from "./game";
-import type { Economy, HelperId, Point, UpgradeId, World, WorldEvent } from "./types";
+import { buy, catchUp, earn, findsSoFar, newGame, perSecond, restore } from "./game";
+import type { Economy, ItemId, Point, World, WorldEvent } from "./types";
 import { createWorld, findSpot, stepWorld, tapWorld } from "./world";
 
 const HUD_MS = 100;
 const SAVE_MS = 2000;
+// How long a line about something that just happened stays on the scoreboard.
+const NOTICE_MS = 4000;
 // The room never advances more than this in one frame, so a slow frame can't make a beam skip over a glint.
 const MAX_STEP = 0.05;
 
@@ -23,6 +25,7 @@ function save(state: Economy) {
 // and the count is copied into React state ten times a second for the interface.
 export function useGame() {
   const [state, setState] = useState<Economy>(() => newGame(0));
+  const [notice, setNotice] = useState<string | null>(null);
   const game = useRef<{ state: Economy; world: World; loaded: boolean; events: WorldEvent[] } | null>(null);
   const painter = useRef<Painter | null>(null);
 
@@ -38,6 +41,7 @@ export function useGame() {
     let last = performance.now();
     let shown = 0;
     let saved = last;
+    let noticeUntil = 0;
     let frame = 0;
     const tick = (time: number) => {
       const elapsed = Math.max(0, (time - last) / 1000);
@@ -52,6 +56,14 @@ export function useGame() {
       current.world = found ? { ...step.world, findX: findSpot(step.world.hero.x, step.world.hero.facing) } : step.world;
       painter.current?.(current.world, current.state, [...current.events, ...step.events]);
       current.events = [];
+      const said = step.events.findLast((event) => event.type === "notice");
+      if (said) {
+        setNotice(said.text);
+        noticeUntil = time + NOTICE_MS;
+      } else if (noticeUntil && time >= noticeUntil) {
+        setNotice(null);
+        noticeUntil = 0;
+      }
       if (time - shown >= HUD_MS || found) {
         shown = time;
         setState(current.state);
@@ -92,12 +104,11 @@ export function useGame() {
     setState(game.current.state);
     save(game.current.state);
   }, []);
-  const hireHelper = useCallback((id: HelperId) => change((s) => hire(s, id)), [change]);
-  const buyUpgrade = useCallback((id: UpgradeId) => change((s) => upgrade(s, id)), [change]);
+  const buyItem = useCallback((id: ItemId) => change((s) => buy(s, id)), [change]);
   // The scene registers how to draw a frame once its Rive file has loaded.
   const setPainter = useCallback((paint: Painter | null) => {
     painter.current = paint;
   }, []);
 
-  return { state, aim, restart, hire: hireHelper, upgrade: buyUpgrade, setPainter };
+  return { state, notice, aim, restart, buy: buyItem, setPainter };
 }

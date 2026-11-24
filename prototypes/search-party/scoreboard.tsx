@@ -5,7 +5,8 @@ import type { Economy } from "./types";
 // One decimal while the rate is small, so the first intern visibly counts.
 const rate = (value: number) => (value < 100 ? String(Number(value.toFixed(1))) : format(value));
 
-export function Scoreboard({ state }: { state: Economy }) {
+// `notice` is a line about something that just happened. It takes the place of the latest find for a few seconds.
+export function Scoreboard({ state, notice }: { state: Economy; notice: string | null }) {
   const found = findsSoFar(state.earned);
   const latest = found.at(-1);
   const next = nextFind(state.earned);
@@ -22,7 +23,7 @@ export function Scoreboard({ state }: { state: Economy }) {
         <div className="h-full origin-left bg-primary motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out" style={{ transform: `scaleX(${findProgress(state.earned)})` }} />
       </div>
       <div className="flex min-h-5 items-baseline justify-between gap-4 text-sm" aria-live="polite">
-        <span className="truncate font-medium">{latest ? `Found: ${latest.name}` : "Tap the room to search"}</span>
+        <span className="truncate font-medium">{notice ?? (latest ? `Found: ${latest.name}` : "Tap the room to search")}</span>
         <span className="shrink-0 font-mono text-muted-foreground tabular-nums">
           {next ? `${found.length}/${FINDS.length} · next at ${format(next.at)}` : `${found.length}/${FINDS.length}`}
         </span>

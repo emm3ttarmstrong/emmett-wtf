@@ -1,57 +1,39 @@
-import { AWAY_LIMIT_SECONDS, COST_GROWTH, FINDS, HELPERS, TUNING, UPGRADES } from "./data";
-import type { Economy, Find, Helper, HelperId, Upgrade, UpgradeId } from "./types";
+import { AWAY_LIMIT_SECONDS, FINDS, ITEMS, TUNING } from "./data";
+import type { Economy, Find, Item, ItemId } from "./types";
 
 export function newGame(now: number): Economy {
-  return {
-    clues: 0,
-    earned: 0,
-    owned: Object.fromEntries(HELPERS.map((h) => [h.id, 0])) as Record<HelperId, number>,
-    upgrades: Object.fromEntries(UPGRADES.map((u) => [u.id, 0])) as Record<UpgradeId, number>,
-    savedAt: now,
-  };
+  return { clues: 0, earned: 0, levels: Object.fromEntries(ITEMS.map((item) => [item.id, 0])) as Record<ItemId, number>, savedAt: now };
 }
 
-export function costOf(helper: Helper, owned: number) {
-  return Math.ceil(helper.cost * COST_GROWTH ** owned);
+// What the next level of an item costs, or `null` when it is at its maximum.
+export function costOf(item: Item, level: number) {
+  return level >= item.max ? null : Math.ceil(item.cost * item.growth ** level);
 }
 
-export function upgradeCost(upgrade: Upgrade, level: number) {
-  return Math.ceil(upgrade.cost * upgrade.growth ** level);
-}
-
+// What the crew earns each second. Each level of a helper doubles what it brings in.
 export function perSecond(state: Economy) {
-  return HELPERS.reduce((sum, h) => sum + h.perSecond * state.owned[h.id], 0);
+  return ITEMS.reduce((sum, item) => sum + (item.perSecond ?? 0) * (2 ** state.levels[item.id] - 1), 0);
 }
 
-// What a glint pays when a helper's light finds it. It grows with the helpers, so glints matter at every stage.
-export function helperGlintValue(state: Economy) {
+// What a glint pays when any light but the searcher's own torch finds it. It grows with the crew.
+export function otherGlintValue(state: Economy) {
   return Math.ceil(1 + TUNING.glintShare * perSecond(state));
 }
 
-// What a glint pays when the searcher's own torch finds it. The bulb only brightens that torch,
-// which is what keeps sweeping worth more than waiting.
+// What a glint pays when the searcher's own torch finds it. This is what keeps sweeping worth more than waiting.
 export function glintValue(state: Economy) {
-  return helperGlintValue(state) * (TUNING.torchBonus + state.upgrades.bulb);
+  return otherGlintValue(state) * (TUNING.torchBonus + state.levels.bulb);
 }
 
 export function earn(state: Economy, clues: number): Economy {
   return clues > 0 ? { ...state, clues: state.clues + clues, earned: state.earned + clues } : state;
 }
 
-export function hire(state: Economy, id: HelperId): Economy {
-  const helper = HELPERS.find((h) => h.id === id);
-  if (!helper) return state;
-  const cost = costOf(helper, state.owned[id]);
-  if (state.clues < cost) return state;
-  return { ...state, clues: state.clues - cost, owned: { ...state.owned, [id]: state.owned[id] + 1 } };
-}
-
-export function upgrade(state: Economy, id: UpgradeId): Economy {
-  const item = UPGRADES.find((u) => u.id === id);
-  if (!item || state.upgrades[id] >= item.max) return state;
-  const cost = upgradeCost(item, state.upgrades[id]);
-  if (state.clues < cost) return state;
-  return { ...state, clues: state.clues - cost, upgrades: { ...state.upgrades, [id]: state.upgrades[id] + 1 } };
+export function buy(state: Economy, id: ItemId): Economy {
+  const item = ITEMS.find((i) => i.id === id);
+  const cost = item ? costOf(item, state.levels[id]) : null;
+  if (cost === null || state.clues < cost) return state;
+  return { ...state, clues: state.clues - cost, levels: { ...state.levels, [id]: state.levels[id] + 1 } };
 }
 
 export function findsSoFar(earned: number): Find[] {
@@ -83,13 +65,12 @@ export function restore(stored: unknown, now: number): Economy {
   const fresh = newGame(now);
   if (!stored || typeof stored !== "object") return fresh;
   const saved = stored as Record<string, unknown>;
-  const levels = (value: unknown) => (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  const levels = (saved.levels && typeof saved.levels === "object" ? saved.levels : {}) as Record<string, unknown>;
   const earned = count(saved.earned);
   return {
     clues: Math.min(count(saved.clues), earned),
     earned,
-    owned: Object.fromEntries(HELPERS.map((h) => [h.id, Math.floor(count(levels(saved.owned)[h.id]))])) as Record<HelperId, number>,
-    upgrades: Object.fromEntries(UPGRADES.map((u) => [u.id, Math.min(u.max, Math.floor(count(levels(saved.upgrades)[u.id])))])) as Record<UpgradeId, number>,
+    levels: Object.fromEntries(ITEMS.map((item) => [item.id, Math.min(item.max, Math.floor(count(levels[item.id])))])) as Record<ItemId, number>,
     savedAt: Math.min(count(saved.savedAt) || now, now),
   };
 }
