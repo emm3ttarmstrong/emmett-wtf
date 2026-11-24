@@ -93,7 +93,8 @@ export function useGame() {
   // Points the searcher at a spot. `press` is true for a fresh tap and false while a finger is dragging.
   const aim = useCallback((point: Point, press: boolean) => {
     if (!game.current) return;
-    game.current.world = tapWorld(game.current.world, point);
+    // The view shows the world from `camX` onwards, so a point in the view is that much further along the walk.
+    game.current.world = tapWorld(game.current.world, { x: point.x + game.current.world.camX, y: point.y });
     if (press) game.current.events.push({ type: "tap" });
   }, []);
   // Starts again from nothing: no clues, no helpers, no upgrades, and a fresh room.

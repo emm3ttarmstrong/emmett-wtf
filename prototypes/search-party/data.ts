@@ -25,7 +25,7 @@ export const ITEMS: readonly Item[] = [
   { id: "dog", group: "crew", name: "Search dog", note: "Chases the mouse", cost: 1_800, growth: 3.2, max: 8, perSecond: 5 },
   { id: "detective", group: "crew", name: "Detective", note: "Rummages for you", cost: 10_000, growth: 3.2, max: 8, perSecond: 20 },
   { id: "satellite", group: "crew", name: "Satellite", note: "Sweeps from above", cost: 55_000, growth: 3.2, max: 8, perSecond: 80 },
-  { id: "bulbs", group: "room", name: "Fix a bulb", note: "Lights the floor under it", cost: 300, growth: 5, max: 3 },
+  { id: "bulbs", group: "room", name: "Fix the bulbs", note: "More ceiling lights work", cost: 300, growth: 5, max: 3 },
   { id: "cat", group: "room", name: "Befriend the cat", note: "It pounces on what is near", cost: 1_200, growth: 1, max: 1 },
   { id: "curtains", group: "room", name: "Open the curtains", note: "Lets the moonlight in", cost: 2_500, growth: 1, max: 1 },
 ];
@@ -78,15 +78,20 @@ export const TUNING = {
   bulbQuicken: 0.25,
   // Each crew level makes that helper's light this much bigger.
   crewGrow: 0.2,
-  // The torch: top turning speed in degrees a second, top walking speed in pixels a second.
+  // The torch's top turning speed in degrees a second.
   turnSpeed: 170,
+  // The searcher ambles forward on their own, and hurries towards a tap far ahead.
+  ambleSpeed: 16,
   walkSpeed: 130,
+  // Which ceiling bulbs work at each level of "Fix the bulbs", by the place they hang in.
+  bulbOrder: [0, 3, 1, 7, 5],
+  bulbsLit: [0, 2, 4, 5],
   // How sharply turning and walking slow down as they arrive. Higher is snappier.
   turnEase: 6,
   walkEase: 4.5,
   // The searcher turns round only for a target this many degrees to the other side of straight up.
   flipPast: 12,
-  // The searcher only walks when a tapped point is further away than this, and stops this far short of it.
+  // The searcher hurries when a tapped point is further ahead than this, and slows to a stop this far short of it.
   standOff: 150,
   holdSeconds: 1.2,
   idleDrift: 4,

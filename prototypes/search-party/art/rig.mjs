@@ -57,8 +57,8 @@ async function parentWorld(parent) {
 
 // Rive puts an imported group's origin at the centre of its bounding box. This moves the origin to a point on the
 // artboard and shifts the children back by the same amount, so nothing moves on screen but rotation and scale pivot there.
-export async function repivot(name, worldX, worldY) {
-  const id = await idOf(name, null);
+export async function repivot(name, worldX, worldY, type = null) {
+  const id = await idOf(name, type);
   const node = await transformOf(id);
   const outer = await parentWorld(node.parent);
   const world = multiply(outer, node.matrix);
@@ -75,16 +75,21 @@ export async function repivot(name, worldX, worldY) {
 }
 
 const HERO = GEO.hero;
-const HAND = { x: HERO.x + HERO.handX, y: HERO.handY };
+// The artboard is one view of the walk, and the searcher stands at a fixed place in it.
+const HERO_X = HERO.screenX;
+const HAND = { x: HERO_X + HERO.handX, y: HERO.handY };
+const SEG = GEO.segment;
+const DESIGNS = Array.from({ length: GEO.designs }, (_, d) => d);
+const WINDOWS = Object.keys(GEO.lights.moon.windows).map(Number);
+// Where the art generator first places each of the eight places: three abreast.
+const segmentX = (d) => (d % 3) * SEG;
 export const FINDS = ["sock", "semicolon", "remote", "keys", "socket", "plot", "atlantis", "note"];
 // Where the art generator places each helper. `crawler` is the robot.
-const HELPER_X = { satellite: 500, detective: 30, intern: 420, crawler: 700, dog: 200 };
+const HELPER_X = { satellite: 700, detective: 200, intern: 420, crawler: 800, dog: 300 };
 const BEAMED = ["intern", "crawler", "detective", "satellite"];
 const HELPERS = ["satellite", "detective", "intern", "crawler", "dog"];
-const SHAKES = GEO.stashes.map((s) => s.object);
-const SHAKE_PIVOT = Object.fromEntries(GEO.stashes.map((s) => [s.object, s.pivotX]));
 // A find appears beside the searcher, so every find and its sparkles share one bound position.
-const FIND_START = { x: HERO.x + 60, y: GEO.floor };
+const FIND_START = { x: HERO_X + 60, y: GEO.floor };
 const helperY = (n) => (n === "dog" ? GEO.dog.y : GEO.beams[n].y);
 
 const P = (name, propertyType) => ({ name, propertyType });
@@ -96,12 +101,15 @@ const PROPERTIES = [
   P("detectiveX", "number"), P("detectiveBeamX", "number"), P("detectiveAim", "number"), P("satelliteX", "number"), P("satelliteBeamX", "number"), P("satelliteAim", "number"),
   // Each glint has a position, a size, and a glow that grows while a light is finding it.
   ...Array.from({ length: GEO.glints }, (_, i) => [P(`g${i}x`, "number"), P(`g${i}y`, "number"), P(`g${i}s`, "number"), P(`g${i}c`, "number")]).flat(),
-  ...GEO.stashes.flatMap((_, i) => [P(`stash${i}`, "number"), P(`stash${i}c`, "number"), P(`shake${i}`, "trigger")]),
+  // Stash markers are pooled: the game moves each to a stash that is in view.
+  ...Array.from({ length: GEO.stashPool }, (_, i) => [P(`stash${i}x`, "number"), P(`stash${i}y`, "number"), P(`stash${i}`, "number"), P(`stash${i}c`, "number")]).flat(),
+  // Where each of the eight places is on screen, and the two layers that move at their own speeds.
+  ...DESIGNS.map((d) => P(`seg${d}x`, "number")), P("skyAx", "number"), P("skyBx", "number"), P("foreAx", "number"), P("foreBx", "number"),
   P("findX", "number"),
   // The torch's reach and brightness, the headlamp and the lantern.
   P("beamLong", "number"), P("beamBright", "number"), P("headX", "number"), P("headAim", "number"), P("headSize", "number"), P("lantern", "number"),
   // Lights that belong to the room, and lightning.
-  ...GEO.lights.bulbs.map((_, i) => P(`bulb${i}`, "number")), P("moon", "number"), P("moonAim", "number"), P("flashX", "number"),
+  ...Array.from({ length: GEO.lights.bulb.pool }, (_, i) => [P(`bulb${i}`, "number"), P(`bulb${i}x`, "number")]).flat(), P("moon", "number"), P("moonX", "number"), P("moonAim", "number"), P("flashX", "number"),
   // How big each helper's light has grown.
   ...BEAMED.map((n) => P(`${n}Size`, "number")),
   P("catCollar", "number"), P("mothX", "number"), P("mothY", "number"), P("alertX", "number"), P("alertY", "number"), P("alertS", "number"),
@@ -125,13 +133,18 @@ const stages = {
   async pivots() {
     const done = [];
     const at = async (name, x, y) => done.push(await repivot(name, x, y));
-    for (const name of ["hero", "hero-flip", "hero-body"]) await at(name, HERO.x, GEO.floor);
+    // A bound x is measured from the parent's origin, and Rive puts a group's origin at the middle of its contents.
+    // The containers that hold sliding things are moved to the artboard's corner, so a bound x is a place on screen.
+    for (const name of ["room-dark", "room-lit", "sky"]) await at(name, 0, 0);
+    for (const name of ["beam", "glass"]) done.push(await repivot(name, 0, 0, "Shape"));
+    for (const name of ["hero", "hero-flip", "hero-body"]) await at(name, HERO_X, GEO.floor);
     await at("torch", HAND.x, HAND.y);
     await at("beam-main", HAND.x, HAND.y);
-    await at("leg-l", HERO.x - 14.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
-    await at("leg-r", HERO.x + 15.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
-    await at("blink", HERO.x + 14.5 * HERO.scale, GEO.floor - 143 * HERO.scale);
-    await at("spider", 48, 48);
+    // The haze has to stretch from the torch, not from its own middle.
+    await at("haze", HAND.x, HAND.y);
+    await at("leg-l", HERO_X - 14.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
+    await at("leg-r", HERO_X + 15.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
+    await at("blink", HERO_X + 14.5 * HERO.scale, GEO.floor - 143 * HERO.scale);
     await at("sparkles", FIND_START.x, FIND_START.y - 24);
     for (const name of FINDS) await at(`find-${name}`, FIND_START.x, FIND_START.y);
     for (const name of HELPERS) await at(`helper-${name}`, HELPER_X[name], helperY(name));
@@ -141,21 +154,25 @@ const stages = {
       await at(`beam-${name}`, HELPER_X[name] + b.dx, b.oy);
       await at(`haze-${name}`, HELPER_X[name] + b.dx, b.oy);
     }
-    await at("mouse", -40, GEO.mouseY);
-    // The haze has to stretch from the torch, not from its own middle.
-    await at("haze", HAND.x, HAND.y);
+    // Each place pivots at its left edge, so its bound x is where that edge is on screen.
+    for (const d of DESIGNS) for (const layer of ["dark", "lit", "top"]) await at(`seg-${d}-${layer}`, segmentX(d), 0);
+    for (const d of WINDOWS) await at(`glass-${d}`, segmentX(d), 0);
+    await at("sky-a", 0, 0);
+    await at("sky-b", GEO.sky.period, 0);
+    await at("fore-a", 0, 0);
+    await at("fore-b", GEO.fore.period, 0);
     const L = GEO.lights;
-    for (const [i, bulb] of L.bulbs.entries()) for (const part of ["beam", "haze"]) await at(`${part}-bulb-${i}`, bulb.x, bulb.y);
-    for (const part of ["beam", "haze"]) await at(`${part}-moon`, L.moon.x, L.moon.y);
-    for (const name of ["beam-head", "headlamp", "haze-head"]) await at(name, HERO.x + L.head.dx, L.head.y);
-    for (const part of ["beam", "haze"]) await at(`${part}-lantern`, HERO.x, L.lantern.y);
+    for (let i = 0; i < L.bulb.pool; i++) for (const part of ["beam", "haze"]) await at(`${part}-bulb-${i}`, L.bulb.x, L.bulb.y);
+    for (const part of ["beam", "haze"]) await at(`${part}-moon`, L.moon.windows[0], L.moon.y);
+    for (const name of ["beam-head", "headlamp", "haze-head"]) await at(name, HERO_X + L.head.dx, L.head.y);
+    for (const part of ["beam", "haze"]) await at(`${part}-lantern`, HERO_X, L.lantern.y);
     await at("beam-flash", -5000, 0);
-    await at("cat-collar", GEO.cat.x, GEO.cat.y);
-    for (const name of ["moth", "moth-wings"]) await at(name, HERO.x + 120, 120);
-    await at("alert", GEO.phone.x, GEO.phone.y);
-    for (let i = 0; i < GEO.pages; i++) await at(`page-${i}`, GEO.door.x - i * 22, GEO.door.y);
-    await at("burst", HERO.x, 200);
-    for (const name of SHAKES) for (const tone of ["dark", "lit"]) await at(`${name}-${tone}`, SHAKE_PIVOT[name], GEO.floor);
+    await at("cat-collar", segmentX(GEO.cat.design) + GEO.cat.x, GEO.cat.y);
+    for (const name of ["moth", "moth-wings"]) await at(name, HERO_X + 120, 120);
+    await at("alert", SEG + GEO.phones[1][0], GEO.phones[1][1] - 16);
+    for (let i = 0; i < GEO.pages; i++) await at(`page-${i}`, 900 - i * 22, 296);
+    await at("mouse", -40, GEO.mouseY);
+    await at("burst", HERO_X, 200);
     return done.map((d) => `${d.name} ${d.moved}`);
   },
 
@@ -195,8 +212,20 @@ const stages = {
     await bind("beam-lantern", K.x, "heroX");
     await both("beam-lantern", "lantern");
     await both("haze-lantern", "lantern");
-    for (let i = 0; i < GEO.lights.bulbs.length; i++) for (const part of ["beam", "haze"]) await both(`${part}-bulb-${i}`, `bulb${i}`);
+    for (let i = 0; i < GEO.lights.bulb.pool; i++) {
+      for (const part of ["beam", "haze"]) {
+        await both(`${part}-bulb-${i}`, `bulb${i}`);
+        await bind(`${part}-bulb-${i}`, K.x, `bulb${i}x`);
+      }
+    }
+    for (const d of DESIGNS) for (const layer of ["dark", "lit", "top"]) await bind(`seg-${d}-${layer}`, K.x, `seg${d}x`);
+    for (const d of WINDOWS) await bind(`glass-${d}`, K.x, `seg${d}x`);
+    await bind("sky-a", K.x, "skyAx");
+    await bind("sky-b", K.x, "skyBx");
+    await bind("fore-a", K.x, "foreAx");
+    await bind("fore-b", K.x, "foreBx");
     for (const part of ["beam", "haze"]) {
+      await bind(`${part}-moon`, K.x, "moonX");
       await both(`${part}-moon`, "moon");
       await bind(`${part}-moon`, K.r, "moonAim");
     }
@@ -230,7 +259,9 @@ const stages = {
       await bind(`glow-${i}`, K.sx, `g${i}c`);
       await bind(`glow-${i}`, K.sy, `g${i}c`);
     }
-    for (let i = 0; i < GEO.stashes.length; i++) {
+    for (let i = 0; i < GEO.stashPool; i++) {
+      await bind(`stash-${i}`, K.x, `stash${i}x`);
+      await bind(`stash-${i}`, K.y, `stash${i}y`);
       await bind(`stash-${i}`, K.sx, `stash${i}`);
       await bind(`stash-${i}`, K.sy, `stash${i}`);
       await bind(`stash-glow-${i}`, K.sx, `stash${i}c`);
@@ -275,8 +306,8 @@ async function timeline(name, frames, loop, keys) {
 
 stages.timelines = async () => {
   const id = {};
-  const nodes = ["moth-wings", "hero", "hero-body", "leg-l", "leg-r", "blink", "face-smile", "face-wow", "face-happy", "sparkles", "cat-eyes", "spider", "motes", "mouse-eyes", "beam-main", "burst",
-    ...FINDS.map((n) => `find-${n}`), ...HELPERS.map((n) => `helper-${n}`), ...BEAMED.map((n) => `haze-${n}`), ...SHAKES.flatMap((n) => [`${n}-dark`, `${n}-lit`])];
+  const nodes = ["moth-wings", "hero", "hero-body", "leg-l", "leg-r", "blink", "face-smile", "face-wow", "face-happy", "sparkles", "cat-eyes", "motes", "mouse-eyes", "beam-main", "burst",
+    ...FINDS.map((n) => `find-${n}`), ...HELPERS.map((n) => `helper-${n}`), ...BEAMED.map((n) => `haze-${n}`)];
   for (const n of nodes) id[n] = await idOf(n);
   const base = async (n, key) => (await values(id[n], [key]))[key];
   const heroY = await base("hero", K.y);
@@ -289,7 +320,6 @@ stages.timelines = async () => {
   done.push(await timeline("ambient", 240, true, [
     [id.blink, K.sy, 0, 100, "hold"], [id.blink, K.sy, 150, 100, "linear"], [id.blink, K.sy, 155, 8, "linear"], [id.blink, K.sy, 160, 100, "hold"],
     [id["hero-body"], K.sy, 0, 100], [id["hero-body"], K.sy, 120, 101.6], [id["hero-body"], K.sy, 240, 100],
-    [id.spider, K.r, 0, -7], [id.spider, K.r, 120, 7], [id.spider, K.r, 240, -7],
     [id["cat-eyes"], K.sy, 0, 100, "hold"], [id["cat-eyes"], K.sy, 58, 100, "linear"], [id["cat-eyes"], K.sy, 63, 10, "linear"], [id["cat-eyes"], K.sy, 68, 100, "hold"],
     [id.motes, K.y, 0, motesY], [id.motes, K.y, 120, motesY - 6], [id.motes, K.y, 240, motesY],
     [id["mouse-eyes"], K.opacity, 0, 100, "hold"], [id["mouse-eyes"], K.opacity, 200, 0, "hold"], [id["mouse-eyes"], K.opacity, 208, 100, "hold"],
@@ -344,11 +374,6 @@ stages.timelines = async () => {
     [id.burst, K.sx, 0, 30, OUT], [id.burst, K.sx, 24, 140, "hold"], [id.burst, K.sy, 0, 30, OUT], [id.burst, K.sy, 24, 140, "hold"],
   ]));
 
-  for (const [i, n] of SHAKES.entries()) {
-    const both = [id[`${n}-dark`], id[`${n}-lit`]];
-    done.push(await timeline(`shake-${i}-rest`, 1, false, both.map((o) => [o, K.r, 0, 0, "hold"])));
-    done.push(await timeline(`shake-${i}-go`, 22, false, both.flatMap((o) => [[o, K.r, 0, 0, OUT], [o, K.r, 4, -4, SMOOTH], [o, K.r, 9, 4, SMOOTH], [o, K.r, 14, -2, SMOOTH], [o, K.r, 20, 0, "hold"]])));
-  }
   return done;
 };
 
@@ -374,7 +399,6 @@ stages.machine = async () => {
     ...HELPERS.map((n) => toggle(n, `${n}-hidden`, `${n}-in`)),
     oneShot("Burst", "burst-rest", "burst-go"),
     { name: "Flap", states: [state("flap")], otherTransitions: [[ENTRY, "flap"]] },
-    ...SHAKES.map((_, i) => oneShot(`Shake ${i}`, `shake-${i}-rest`, `shake-${i}-go`)),
   ].map((l) => ({ ...l, otherTransitions: l.otherTransitions.map(([from, to]) => ({ from, to })) }));
   await cmd("animation_editor", "createStateMachineLayers", { stateMachineId: machine, layers });
 
@@ -392,7 +416,6 @@ stages.machine = async () => {
       if (to === "face-wow") when(t.id, "found");
       else if (to === "tap-squash") when(t.id, "tap");
       else if (to === "burst-go") when(t.id, "burst");
-      else if (/^shake-\d-go$/.test(to)) when(t.id, `shake${to[6]}`);
       else if (to === "walk") when(t.id, "walking", "equal", true);
       else if (to === "walk-rest") when(t.id, "walking", "equal", false);
       else if (from === "any" && to.startsWith("find-")) when(t.id, "find", "equal", Number(to.slice(5)));

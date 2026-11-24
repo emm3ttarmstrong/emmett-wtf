@@ -303,28 +303,16 @@ const FINDS = {
 const W = 390, H = 380, FLOOR = 318;
 
 // The wall, skirting board and floorboards, repeated every 390 units so the room can be any width.
-function wallAndFloor(t, width = W) {
+function wallAndFloor(t, width = W, hole = true) {
   const bays = Math.ceil(width / 390);
   const seams = Array.from({ length: bays }, (_, i) => `M${i * 390 + 52} 318 v22 M${i * 390 + 188} 318 v22 M${i * 390 + 312} 318 v22 M${i * 390 + 118} 340 v22 M${i * 390 + 252} 340 v22 M${i * 390 + 30} 362 v18 M${i * 390 + 170} 362 v18 M${i * 390 + 330} 362 v18`).join(" ");
   return (
     `<rect width="${width}" height="${FLOOR}" fill="${t.wall}"/><rect y="${FLOOR}" width="${width}" height="${H - FLOOR}" fill="${t.floor}"/>` +
     `<path d="M0 340 h${width} M0 362 h${width} ${seams}" stroke="${t.line}" stroke-width="1" stroke-opacity="0.7"/>` +
     `<rect y="306" width="${width}" height="12" fill="${t.base}"/><rect y="306" width="${width}" height="2" fill="${t.hi}"/>` +
-    `<path d="M243 318 v-6 a6 6 0 0 1 12 0 v6 z" fill="${t.dark}"/>`
+    (hole ? `<path d="M243 318 v-6 a6 6 0 0 1 12 0 v6 z" fill="${t.dark}"/>` : "")
   );
 }
-function cobweb(t, spider = true) {
-  return (
-    `<path d="M0 0 L70 22 M0 0 L52 52 M0 0 L20 68" stroke="${t.line}" stroke-width="1"/>` +
-    `<path d="M22 7 Q24 18 17 17 Q14 26 7 23 M44 14 Q44 32 34 34 Q28 46 13 45 M64 20 Q62 42 48 48 Q38 62 19 64" stroke="${t.line}" stroke-width="1"/>` +
-    (spider ? spiderOnThread(t, 48, 48) : "")
-  );
-}
-
-const spiderOnThread = (t, x, y) =>
-  `<path d="M${x} ${y} v26" stroke="${t.line}" stroke-width="1"/><circle cx="${x}" cy="${y + 29}" r="3.2" fill="${t.pop}"/>` +
-  `<path d="M${x - 3} ${y + 27} l-4 -3 M${x - 3} ${y + 30} l-4 2 M${x + 3} ${y + 27} l4 -3 M${x + 3} ${y + 30} l4 2" stroke="${t.pop}" stroke-width="1" stroke-linecap="round"/>`;
-
 function bulb(t) {
   return (
     `<path d="M150 0 v40" stroke="${t.line}" stroke-width="1.5"/><rect x="145" y="40" width="10" height="9" rx="2" fill="${t.pop}"/>` +
@@ -410,15 +398,32 @@ function plant(t) {
 
 // ───────────────────────── More furniture for the wide room ─────────────────────────
 // Each is drawn at the left of its own space and moved into place with `shift`.
-function door(t) {
+// Digits drawn as strokes, like a seven-segment display, so a door can carry any status code.
+const SEGS = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abfgcd" };
+const STROKE = { a: "M0 0 h4", b: "M4 0 v3.500", c: "M4 3.500 v3.500", d: "M0 7 h4", e: "M0 3.500 v3.500", f: "M0 0 v3.500", g: "M0 3.500 h4" };
+const digits = (code, x, y, colour) =>
+  [...String(code)].map((d, i) => `<path transform="translate(${x + i * 8} ${y})" d="${[...SEGS[d]].map((k) => STROKE[k]).join(" ")}" stroke="${colour}" stroke-width="1.300" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+
+function door(t, code = 404) {
   return (
     `<rect x="0" y="156" width="78" height="162" fill="${t.shade}"/><rect x="6" y="162" width="66" height="156" fill="${t.base}"/>` +
     `<rect x="14" y="172" width="50" height="58" rx="2" fill="${t.hi}"/><rect x="14" y="240" width="50" height="68" rx="2" fill="${t.hi}"/>` +
-    `<rect x="24" y="182" width="30" height="13" rx="2" fill="${t.pop}"/>` +
-    `<path d="M28 185 v4 h4 M32 185 v7 M36.500 185.500 h4 v6 h-4 z M45 185 v4 h4 M49 185 v7" stroke="${t.line}" stroke-width="1.300" stroke-linejoin="round"/>` +
+    `<rect x="24" y="182" width="30" height="13" rx="2" fill="${t.pop}"/>` + digits(code, 28.500, 185, t.line) +
     `<circle cx="62" cy="246" r="3.600" fill="${t.pop}"/><rect x="6" y="315" width="66" height="3" fill="${t.dark}"/>`
   );
 }
+
+// What makes each status door its own joke.
+const padlock = (t) => `<path d="M57 252 v-5 a5 5 0 0 1 10 0 v5" stroke="${t.pop}" stroke-width="2.200"/><rect x="54" y="251" width="16" height="13" rx="2" fill="${t.pop}"/><circle cx="62" cy="257" r="1.800" fill="${t.line}"/>`;
+const rope = (t) =>
+  `<rect x="-14" y="276" width="5" height="42" fill="${t.hi}"/><rect x="87" y="276" width="5" height="42" fill="${t.hi}"/><circle cx="-11.500" cy="274" r="4.500" fill="${t.pop}"/><circle cx="89.500" cy="274" r="4.500" fill="${t.pop}"/>` +
+  `<rect x="-18" y="314" width="13" height="4" rx="1" fill="${t.hi}"/><rect x="83" y="314" width="13" height="4" rx="1" fill="${t.hi}"/><path d="M-11 280 Q39 306 89 280" stroke="${t.pop}" stroke-width="3" stroke-linecap="round"/>`;
+const smoke = (t) => `<circle cx="14" cy="306" r="9" fill="${t.line}" fill-opacity="0.55"/><circle cx="2" cy="290" r="11" fill="${t.line}" fill-opacity="0.4"/><circle cx="18" cy="272" r="13" fill="${t.line}" fill-opacity="0.28"/><circle cx="60" cy="304" r="8" fill="${t.line}" fill-opacity="0.45"/>`;
+const backSoon = (t) => `<rect x="20" y="204" width="38" height="24" fill="${t.pop}" transform="rotate(-4 39 216)"/><path d="M26 212 h26 M26 218 h20 M26 223 h12" stroke="${t.line}" stroke-width="1.600" stroke-linecap="round" transform="rotate(-4 39 216)"/><circle cx="39" cy="205" r="2" fill="${t.line}"/>`;
+const teapotStool = (t) =>
+  `<rect x="0" y="286" width="32" height="5" rx="2" fill="${t.base}"/><path d="M4 291 l-3 27 M28 291 l3 27 M16 291 v27" stroke="${t.shade}" stroke-width="3.500" stroke-linecap="round"/>` +
+  `<ellipse cx="16" cy="275" rx="12" ry="10" fill="${t.hi}"/><path d="M27 272 q8 -2 9 -9" stroke="${t.hi}" stroke-width="3.500" stroke-linecap="round"/><path d="M5 270 q-7 4 -1 11" stroke="${t.hi}" stroke-width="3"/>` +
+  `<rect x="9" y="263" width="14" height="4" rx="2" fill="${t.pop}"/><circle cx="16" cy="261" r="2.200" fill="${t.pop}"/><path d="M38 256 q-3 -5 0 -9 q3 -4 0 -9" stroke="${t.pop}" stroke-width="1.600" stroke-linecap="round"/>`;
 
 function desk(t) {
   return (
@@ -471,16 +476,129 @@ function ladder(t) {
   return `<path d="${rungs}" stroke="${t.hi}" stroke-width="4" stroke-linecap="round"/><path d="M0 318 L22 152 M34 318 L56 152" stroke="${t.base}" stroke-width="5" stroke-linecap="round"/>`;
 }
 
-// ───────────────────────── The room ─────────────────────────
-// Three bays wide. `tag` names the six objects that can be rummaged, so Rive can shake the unlit and lit copies together.
+function serverRack(t) {
+  const unit = (y, i) => `<rect x="6" y="${y}" width="52" height="20" rx="1" fill="${t.hi}"/><path d="M12 ${y + 6} h18 M12 ${y + 10} h18 M12 ${y + 14} h18" stroke="${t.shade}" stroke-width="1.200"/><circle cx="40" cy="${y + 10}" r="2" fill="${i % 2 ? t.pop : t.line}"/><circle cx="48" cy="${y + 10}" r="2" fill="${t.pop}"/>`;
+  return `<rect x="0" y="148" width="64" height="170" rx="2" fill="${t.base}"/><rect x="0" y="148" width="5" height="170" fill="${t.shade}"/>` + [156, 182, 208, 234, 260, 286].map(unit).join("");
+}
+
+function fridge(t) {
+  return (
+    `<rect x="0" y="166" width="60" height="150" rx="5" fill="${t.base}"/><rect x="0" y="166" width="7" height="150" fill="${t.shade}"/><rect x="0" y="214" width="60" height="2.500" fill="${t.shade}"/>` +
+    `<rect x="48" y="180" width="4" height="22" rx="2" fill="${t.line}"/><rect x="48" y="226" width="4" height="34" rx="2" fill="${t.line}"/>` +
+    `<rect x="16" y="232" width="18" height="20" fill="${t.pop}" transform="rotate(5 25 242)"/><circle cx="25" cy="231" r="2.500" fill="${t.line}"/><rect x="4" y="316" width="8" height="2" fill="${t.shade}"/><rect x="48" y="316" width="8" height="2" fill="${t.shade}"/>`
+  );
+}
+
+function vending(t) {
+  const row = (y) => [10, 21, 32, 43].map((x, i) => `<rect x="${x}" y="${y}" width="8" height="12" rx="1.500" fill="${i % 2 ? t.pop : t.hi}"/>`).join("");
+  return (
+    `<rect x="0" y="158" width="76" height="160" rx="3" fill="${t.base}"/><rect x="6" y="166" width="48" height="104" rx="2" fill="${t.dark}"/>` + row(172) + row(192) + row(212) + row(232) + row(252) +
+    `<rect x="59" y="172" width="12" height="18" rx="1" fill="${t.hi}"/><rect x="62" y="198" width="6" height="10" rx="1" fill="${t.line}"/><rect x="10" y="282" width="40" height="16" rx="2" fill="${t.shade}"/>`
+  );
+}
+
+function radiator(t) {
+  const fins = Array.from({ length: 9 }, (_, i) => `<rect x="${i * 11}" y="270" width="8" height="42" rx="4" fill="${t.base}"/>`).join("");
+  return fins + `<path d="M-6 304 h8 M96 304 h10" stroke="${t.shade}" stroke-width="3"/>` + `<path d="M58 258 q8 -4 16 0 v16 h-6 v-6 h-3 v6 h-7 z" fill="${t.pop}"/><path d="M58 268 h16" stroke="${t.shade}" stroke-width="1.200"/>`;
+}
+
+function catPoster(t) {
+  return (
+    `<rect x="0" y="0" width="44" height="58" fill="${t.pop}" transform="rotate(3 22 29)"/><g transform="rotate(3 22 29)"><rect x="6" y="5" width="32" height="7" fill="${t.line}"/>` +
+    `<circle cx="22" cy="28" r="8" fill="${t.line}"/><path d="M14.500 24 L16 15 L21 21 Z M23 21 L28 15 L29.500 24 Z" fill="${t.line}"/><path d="M8 43 h28 M8 48 h20 M8 53 h24" stroke="${t.line}" stroke-width="1.400" stroke-linecap="round"/></g><circle cx="22" cy="1" r="2" fill="${t.line}"/>`
+  );
+}
+
+function lostBox(t) {
+  return (
+    `<path d="M18 276 q-2 -30 10 -30 q10 0 8 12" stroke="${t.hi}" stroke-width="3.500" stroke-linecap="round"/><path d="M46 276 v-22 l10 4 v20 z" fill="${t.pop}"/><path d="M46 262 h10 M46 268 h10" stroke="${t.shade}" stroke-width="1.400"/>` +
+    `<rect x="0" y="274" width="70" height="44" fill="${t.base}"/><rect x="0" y="274" width="70" height="5" fill="${t.hi}"/><rect x="0" y="274" width="6" height="44" fill="${t.shade}"/>` +
+    `<rect x="16" y="288" width="38" height="16" fill="${t.pop}"/><path d="M21 293 h28 M21 299 h18" stroke="${t.line}" stroke-width="1.600" stroke-linecap="round"/>`
+  );
+}
+
+function printer(t) {
+  return (
+    `<rect x="0" y="278" width="80" height="6" rx="1" fill="${t.base}"/><rect x="5" y="284" width="6" height="34" fill="${t.shade}"/><rect x="69" y="284" width="6" height="34" fill="${t.shade}"/>` +
+    `<rect x="10" y="246" width="60" height="32" rx="4" fill="${t.hi}"/><rect x="16" y="238" width="48" height="10" rx="2" fill="${t.base}"/><rect x="18" y="264" width="44" height="5" rx="1" fill="${t.dark}"/>` +
+    `<path d="M24 266 l4 10 l-6 8 l8 8 l-5 9 h26 l4 -9 l-7 -8 l6 -8 l-4 -10 z" fill="${t.pop}"/><path d="M30 280 h18 M29 290 h20" stroke="${t.shade}" stroke-width="1.300"/><circle cx="62" cy="254" r="2" fill="${t.line}"/>`
+  );
+}
+
+// A fish tank with a little sunken temple in it.
+function fishTank(t) {
+  return (
+    `<rect x="0" y="262" width="60" height="5" fill="${t.base}"/><rect x="4" y="267" width="5" height="51" fill="${t.shade}"/><rect x="51" y="267" width="5" height="51" fill="${t.shade}"/>` +
+    `<rect x="4" y="218" width="52" height="44" rx="2" fill="${t.hi}" fill-opacity="0.45"/><path d="M4 218 h52 v44 h-52 z" stroke="${t.base}" stroke-width="2.500"/>` +
+    `<path d="M20 246 L30 239 L40 246 Z" fill="${t.base}"/><rect x="22" y="246" width="3" height="10" fill="${t.base}"/><rect x="28.500" y="246" width="3" height="10" fill="${t.base}"/><rect x="35" y="246" width="3" height="10" fill="${t.base}"/><rect x="18" y="256" width="24" height="4" fill="${t.base}"/>` +
+    `<ellipse cx="14" cy="234" rx="4" ry="2.500" fill="${t.pop}"/><path d="M10 234 l-4 -3 v6 z" fill="${t.pop}"/><ellipse cx="46" cy="228" rx="3.500" ry="2.200" fill="${t.pop}"/><path d="M49.500 228 l4 -3 v6 z" fill="${t.pop}"/>` +
+    `<circle cx="48" cy="244" r="1.500" stroke="${t.pop}" stroke-width="1"/><circle cx="50" cy="238" r="1" stroke="${t.pop}" stroke-width="1"/><rect x="14" y="270" width="32" height="9" rx="1" fill="${t.pop}"/><path d="M18 274.500 h24" stroke="${t.line}" stroke-width="1.600" stroke-linecap="round"/>`
+  );
+}
+
+// Someone asleep at a desk, drawn over the desk's own space.
+const sleeper = (t) =>
+  `<path d="M-14 262 q4 -22 26 -20 q14 2 16 20 z" fill="${t.base}"/><circle cx="12" cy="252" r="11" fill="${t.hi}"/><path d="M2 250 q10 -12 21 -2 q-10 -4 -21 2 z" fill="${t.line}"/><path d="M8 255 q3 2 6 0" stroke="${t.line}" stroke-width="1.400" stroke-linecap="round"/>` +
+  `<path d="M26 236 h7 l-7 8 h7 M38 222 h9 l-9 10 h9" stroke="${t.pop}" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+function bigWindow(t) {
+  const panes = WINDOWS[6].map(([x, y, w, h]) => `<rect x="${x - 30}" y="${y}" width="${w}" height="${h}" fill="${t.dark}"/>`).join("");
+  return `<rect x="0" y="86" width="122" height="104" rx="2" fill="${t.base}"/>` + panes + `<rect x="-5" y="190" width="132" height="6" rx="1" fill="${t.hi}"/>`;
+}
+
+// ───────────────────────── The strip ─────────────────────────
+// The walk is an endless loop of eight places, each 390 wide. `shift` moves a piece into place inside its segment.
 const shift = (dx, body) => g(`translate(${dx} 0)`, body);
-const named = (tag, name, body) => (tag ? `<g id="${name}-${tag}">${body}</g>` : body);
-const room = (t, lit, tag = "") =>
-  wallAndFloor(t, GEO.width) + cobweb(t, !tag) + g(`translate(${GEO.width} 0) scale(-1 1)`, cobweb(t, false)) +
-  shift(55, bulb(t)) + shift(435, bulb(t)) + shift(815, bulb(t)) +
-  shift(250, nightWindow(t)) + shift(250, missingPicture(t)) + shift(330, shelf(t)) + shift(820, door(t)) + g("translate(940 112)", wallClock(t)) + shift(925, ladder(t)) +
-  named(tag, "cabinet", cabinet(t)) + named(tag, "boxes", shift(-86, boxes(t) + cat(t, lit, !tag))) + named(tag, "bookcase", shift(410, bookcase(t))) +
-  named(tag, "desk", shift(610, desk(t))) + named(tag, "crates", shift(820, boxes(t))) + named(tag, "plant", shift(770, plant(t)));
+const SEG = GEO.segment;
+// The glass in each window, in segment space. The skyline shows through these.
+const WINDOWS = {
+  0: [[256, 92, 34, 44], [294, 92, 34, 44], [256, 140, 34, 44], [294, 140, 34, 44]],
+  6: [[36, 92, 34, 44], [74, 92, 34, 44], [112, 92, 34, 44], [36, 140, 34, 44], [74, 140, 34, 44], [112, 140, 34, 44]],
+};
+const hasBulb = (d) => GEO.lights.bulb.designs.includes(d);
+const SEGMENTS = [
+  // 0 the office
+  (t, lit, rig) => cabinet(t) + shift(-86, boxes(t) + cat(t, lit, !rig)) + shift(250, nightWindow(t)),
+  // 1 the study
+  (t) => shift(20, bookcase(t)) + shift(-160, missingPicture(t)) + shift(-66, shelf(t)) + shift(220, desk(t)),
+  // 2 the 404 door
+  (t) => shift(40, door(t, 404)) + g("translate(160 112)", wallClock(t)) + shift(150, ladder(t)) + shift(60, boxes(t)) + shift(-30, plant(t)),
+  // 3 the archive, with a roped-off 403
+  (t) => cabinet(t) + shift(64, cabinet(t)) + shift(128, cabinet(t)) + shift(262, door(t, 403) + rope(t)),
+  // 4 the server room, and a 500 with smoke under the door
+  (t) => shift(26, serverRack(t)) + shift(100, serverRack(t)) + shift(174, serverRack(t)) + `<path d="M0 40 Q95 70 200 44 T390 40" stroke="${t.line}" stroke-width="2"/>` + shift(290, door(t, 500) + smoke(t)),
+  // 5 the break room, with a teapot outside 418
+  (t) => shift(24, fridge(t)) + shift(98, vending(t)) + shift(192, teapotStool(t)) + shift(280, door(t, 418)),
+  // 6 the corridor: a big window, lost property, and a padlocked 401
+  (t) => shift(30, bigWindow(t)) + shift(40, radiator(t)) + g("translate(176 130)", catPoster(t)) + shift(214, lostBox(t)) + shift(302, door(t, 401) + padlock(t)),
+  // 7 the print room, and a 503 that will be back soon
+  (t) => shift(10, door(t, 503) + backSoon(t)) + shift(96, printer(t)) + shift(184, fishTank(t)) + shift(262, desk(t) + sleeper(t)),
+];
+const segment = (d, t, lit, rig = false) => wallAndFloor(t, SEG, d === 0) + (hasBulb(d) ? shift(55, bulb(t)) : "") + SEGMENTS[d](t, lit, rig);
+
+// The skyline behind the windows: far buildings with a few lit windows. One period of it, repeated.
+function skyline() {
+  const P = GEO.sky.period;
+  const towers = [[0, 60, 150], [66, 44, 120], [116, 70, 168], [192, 50, 132], [248, 84, 150], [338, 40, 110], [384, 64, 160], [454, 56, 126], [516, 76, 172], [598, 48, 138], [652, 70, 152], [728, 52, 122]];
+  const lights = towers.flatMap(([x, w, top], i) => Array.from({ length: 3 }, (_, k) => `<rect x="${x + 8 + ((i * 13 + k * 17) % (w - 16))}" y="${top + 10 + ((i * 7 + k * 23) % 40)}" width="4" height="5" fill="${C.beam}" fill-opacity="0.75"/>`));
+  return (
+    `<rect x="0" y="60" width="${P}" height="160" fill="#10131F"/>` +
+    [[40, 78], [150, 96], [300, 72], [420, 88], [560, 76], [690, 100]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1" fill="${C.cream}"/>`).join("") +
+    `<circle cx="210" cy="96" r="9" fill="${C.cream}"/><circle cx="214" cy="93" r="8" fill="#10131F"/>` +
+    towers.map(([x, w, top]) => `<rect x="${x}" y="${top}" width="${w}" height="${220 - top}" fill="#070910"/>`).join("") + lights.join("")
+  );
+}
+
+// Dark shapes close to the camera. They pass faster than the room, which is what gives the walk its depth.
+function foreground() {
+  const black = "#000000";
+  return (
+    `<rect x="120" y="0" width="34" height="380" fill="${black}"/><rect x="108" y="352" width="58" height="28" fill="${black}"/>` +
+    `<path d="M520 0 Q560 70 640 0" stroke="${black}" stroke-width="5"/><path d="M600 0 Q660 110 760 0" stroke="${black}" stroke-width="4"/>` +
+    `<path d="M930 380 C900 330 930 300 950 340 C950 290 990 280 984 340 C1010 300 1040 320 1010 380 Z" fill="${black}"/>` +
+    `<rect x="1290" y="330" width="90" height="50" fill="${black}"/><rect x="1310" y="296" width="56" height="36" fill="${black}"/>`
+  );
+}
 
 function mouse() {
   return `<ellipse cx="0" cy="0" rx="6" ry="3.500" fill="${C.creamShade}"/><circle cx="6" cy="-1" r="2.600" fill="${C.creamShade}"/><circle cx="7" cy="-3.500" r="1.500" fill="${C.blush}"/><circle cx="7.500" cy="-1.400" r="0.600" fill="${C.ink}"/><path d="M-6 0 q-6 0 -8 -4" stroke="${C.creamShade}" stroke-width="1"/>`;
@@ -504,7 +622,7 @@ const FLOOR_Y = GEO.floor;
 const B = GEO.beams;
 const L = GEO.lights;
 // Where each helper stands when the file is imported. The game moves them afterwards.
-const HELPER_X = { satellite: 500, detective: 30, intern: 420, crawler: 700, dog: 200 };
+const HELPER_X = { satellite: 700, detective: 200, intern: 420, crawler: 800, dog: 300 };
 const HELPER_AIM = { intern: -30, crawler: -150, detective: -15, satellite: 80 };
 const DRAW = { intern, crawler, detective, satellite, dog };
 // Scattered start positions for glints and dust, from a fixed sequence so the file is the same on every run.
@@ -523,9 +641,13 @@ function sheet() {
 // ───────────────────────── The scene as Rive imports it ─────────────────────────
 // Ids become layer names in Rive. Anything that moves sits in its own group, translated to its pivot,
 // with no rotation or scale of its own, so the game and the timelines start from clean values.
+//
+// The artboard is one view of the walk, 1170 wide. Each of the eight places is a group the game slides sideways,
+// in three copies: unlit, lit (inside the clip that every light adds to), and a top layer for things that glow.
 function rigScene() {
   const s = HERO.scale;
-  const hand = { x: HERO.x + HERO.handX, y: HERO.handY };
+  const heroX = HERO.screenX;
+  const hand = { x: heroX + HERO.handX, y: HERO.handY };
   const origin = (name) => ({ x: HELPER_X[name] + B[name].dx, y: B[name].oy });
   const beamed = ["intern", "crawler", "detective", "satellite"];
   const helper = (name) => {
@@ -539,56 +661,76 @@ function rigScene() {
   const glow = (r) => `<circle cx="0" cy="0" r="${r}" fill="url(#glow)"/>`;
   // A dark disc behind every marker, so it still reads when the wall behind it is lit.
   const backing = (r) => `<circle cx="0" cy="0" r="${r}" fill="#000000" fill-opacity="0.5"/>`;
-  // Lights that belong to the room: three ceiling bulbs and the moon through the window. Each is a clip path and a haze.
-  const fixed = [...L.bulbs.map((bulb, i) => ({ id: `bulb-${i}`, x: bulb.x, y: bulb.y, angle: 90, ...L.bulb })), { id: "moon", ...L.moon }];
-  const head = { x: HERO.x + L.head.dx, y: L.head.y };
+  const designs = Array.from({ length: GEO.designs }, (_, d) => d);
+  // Ceiling bulbs and the moonbeam are pooled: the game moves each to whichever bulb or window is in view.
+  const bulbs = Array.from({ length: L.bulb.pool }, (_, i) => ({ ...L.bulb, id: `bulb-${i}`, angle: 90 }));
+  const moon = { id: "moon", x: L.moon.windows[0], ...L.moon };
+  const fixed = [...bulbs, moon];
+  const head = { x: heroX + L.head.dx, y: L.head.y };
+  const panes = (d) => WINDOWS[d].map(([x, y, w, h]) => `M${x} ${y} h${w} v${h} h${-w} Z`).join(" ");
+  const cat = GEO.cat;
+  // What sits on top of a place whatever the light: eyes in the dark, and the cat's collar.
+  const top = (d) =>
+    d === 0
+      ? `<g id="cat-eyes" transform="translate(138.250 212)"><ellipse cx="-3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/><ellipse cx="3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/></g>` +
+        `<g id="cat-collar" transform="translate(${cat.x} ${cat.y})"><rect x="-7" y="-2" width="14" height="4" rx="2" fill="${C.yellow}"/><circle cx="0" cy="3.500" r="2.200" fill="${C.yellowDeep}"/></g>` +
+        `<g id="mouse-eyes" transform="translate(249 313)"><circle cx="-2" cy="0" r="0.900" fill="${C.beam}"/><circle cx="2" cy="0" r="0.900" fill="${C.beam}"/></g>`
+      : d === 4
+        ? [182, 208, 234, 260].flatMap((y, i) => [66, 140, 214].map((x, k) => `<circle cx="${x + (i % 2) * 8}" cy="${y}" r="1.600" fill="${(i + k) % 2 ? C.beam : C.blush}"/>`)).join("")
+        : `<circle cx="-20" cy="-20" r="1" fill="#000000" fill-opacity="0"/>`;
+  const place = (d, body, layer) => `<g id="seg-${d}-${layer}" transform="translate(${(d % 3) * SEG} 0)">${body}</g>`;
   return (
     `<defs><clipPath id="beam"><path id="beam-main" transform="translate(${hand.x} ${hand.y})" d="${wedge(B.main)}"/>` +
     beamed.map((n) => `<path id="beam-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})" d="${wedge(B[n])}"/>`).join("") +
     fixed.map((f) => `<path id="beam-${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle})" d="${wedge(f)}"/>`).join("") +
     `<path id="beam-head" transform="translate(${head.x} ${head.y}) rotate(${L.head.angle})" d="${wedge(L.head)}"/>` +
-    `<path id="beam-lantern" transform="translate(${HERO.x} ${L.lantern.y})" d="${disc(L.lantern.radius)}"/>` +
-    // Lightning: the whole room, slid into view for an instant.
+    `<path id="beam-lantern" transform="translate(${heroX} ${L.lantern.y})" d="${disc(L.lantern.radius)}"/>` +
+    // Lightning: the whole view, slid into place for an instant.
     `<path id="beam-flash" transform="translate(-5000 0)" d="M0 0 H${GEO.width} V${GEO.height} H0 Z"/>` +
-    `</clipPath>${hazeGradient("main", B.main.length / s, B.main.strength)}${beamed.map((n) => hazeGradient(n, B[n].length, B[n].strength)).join("")}` +
+    `</clipPath>` +
+    // The glass of each window. The skyline is clipped to these, and they slide with their places.
+    `<clipPath id="glass">${Object.keys(WINDOWS).map((d) => `<path id="glass-${d}" transform="translate(${(d % 3) * SEG} 0)" d="${panes(d)}"/>`).join("")}</clipPath>` +
+    `${hazeGradient("main", B.main.length / s, B.main.strength)}${beamed.map((n) => hazeGradient(n, B[n].length, B[n].strength)).join("")}` +
     fixed.map((f) => hazeGradient(f.id, f.length, f.strength)).join("") + hazeGradient("head", L.head.length / s, L.head.strength) +
     radial("glow", 12, 0.85) + radial("lantern-glow", L.lantern.radius, L.lantern.strength) + `</defs>` +
-    `<g id="room-dark">${room(UNLIT, false, "dark")}</g>` +
-    `<g id="room-lit" clip-path="url(#beam)">${room(LIT, true, "lit")}<g id="motes">${MOTES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`).join("")}</g></g>` +
-    `<g id="cat-eyes" transform="translate(138.250 212)"><ellipse cx="-3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/><ellipse cx="3.750" cy="0" rx="2.400" ry="1.900" fill="${C.beam}"/></g>` +
-    `<g id="cat-collar" transform="translate(${GEO.cat.x} ${GEO.cat.y})"><rect x="-7" y="-2" width="14" height="4" rx="2" fill="${C.yellow}"/><circle cx="0" cy="3.500" r="2.200" fill="${C.yellowDeep}"/></g>` +
-    `<g id="mouse-eyes" transform="translate(249 313)"><circle cx="-2" cy="0" r="0.900" fill="${C.beam}"/><circle cx="2" cy="0" r="0.900" fill="${C.beam}"/></g>` +
-    `<g id="spider" transform="translate(48 48)">${spiderOnThread(UNLIT, 0, 0)}</g>` +
+    `<g id="room-dark">${designs.map((d) => place(d, segment(d, UNLIT, false, true), "dark")).join("")}</g>` +
+    `<g id="room-lit" clip-path="url(#beam)">${designs.map((d) => place(d, segment(d, LIT, true, true), "lit")).join("")}<g id="motes">${MOTES.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.beamCore}" fill-opacity="0.8"/>`).join("")}</g></g>` +
+    `<g id="sky" clip-path="url(#glass)"><g id="sky-a">${skyline()}</g><g id="sky-b" transform="translate(${GEO.sky.period} 0)">${skyline()}</g></g>` +
+    designs.map((d) => place(d, top(d), "top")).join("") +
     fixed.map((f) => `<g id="haze-${f.id}" transform="translate(${f.x} ${f.y}) rotate(${f.angle})"><path d="${wedge(f)}" fill="url(#hz-${f.id})"/></g>`).join("") +
     beamed.map((n) => `<g id="haze-${n}" transform="translate(${origin(n).x} ${origin(n).y}) rotate(${HELPER_AIM[n]})"><path d="${wedge(B[n])}" fill="url(#hz-${n})"/></g>`).join("") +
-    Object.entries(FINDS).map(([name, draw]) => `<g id="find-${name}" transform="translate(${HERO.x + 60} ${FLOOR_Y})"><g transform="translate(-22.400 -43) scale(0.56)">${draw(LIT)}</g></g>`).join("") +
-    `<g id="sparkles" transform="translate(${HERO.x + 60} ${FLOOR_Y - 24})">${sparkle(-28, -18, 5, C.beamCore) + sparkle(28, -6, 3.5, C.beamCore) + sparkle(8, -30, 2.6, C.beamCore)}</g>` +
-    GEO.stashes.map((st, i) => `<g id="stash-${i}" transform="translate(${st.x} ${st.y})">${backing(13)}<g id="stash-glow-${i}">${glow(16)}</g><circle cx="0" cy="0" r="10" stroke="${C.beamCore}" stroke-opacity="0.8" stroke-width="1.400"/>${sparkle(0, 0, 6, C.beamCore)}</g>`).join("") +
-    scatter(GEO.glints, 7).map(([x, y], i) => `<g id="glint-${i}" transform="translate(${x} ${y})">${backing(5.5)}<g id="glow-${i}">${glow(12)}</g>${sparkle(0, 0, 3.6, C.beamCore)}</g>`).join("") +
+    Object.entries(FINDS).map(([name, draw]) => `<g id="find-${name}" transform="translate(${heroX + 60} ${FLOOR_Y})"><g transform="translate(-22.400 -43) scale(0.56)">${draw(LIT)}</g></g>`).join("") +
+    `<g id="sparkles" transform="translate(${heroX + 60} ${FLOOR_Y - 24})">${sparkle(-28, -18, 5, C.beamCore) + sparkle(28, -6, 3.5, C.beamCore) + sparkle(8, -30, 2.6, C.beamCore)}</g>` +
+    Array.from({ length: GEO.stashPool }, (_, i) => `<g id="stash-${i}" transform="translate(${60 + i * 130} 240)">${backing(13)}<g id="stash-glow-${i}">${glow(16)}</g><circle cx="0" cy="0" r="10" stroke="${C.beamCore}" stroke-opacity="0.8" stroke-width="1.400"/>${sparkle(0, 0, 6, C.beamCore)}</g>`).join("") +
+    scatter(GEO.glints, 7).map(([x, y], i) => `<g id="glint-${i}" transform="translate(${x} ${Math.min(290, y)})">${backing(5.5)}<g id="glow-${i}">${glow(12)}</g>${sparkle(0, 0, 3.6, C.beamCore)}</g>`).join("") +
     // Something that needs a light on it quickly: the ringing phone.
-    `<g id="alert" transform="translate(${GEO.phone.x} ${GEO.phone.y})">${backing(13)}<circle cx="0" cy="0" r="10" stroke="${C.yellow}" stroke-width="1.800"/><path d="M0 -5 v6" stroke="${C.yellow}" stroke-width="2.400" stroke-linecap="round"/><circle cx="0" cy="4.500" r="1.400" fill="${C.yellow}"/></g>` +
-    Array.from({ length: GEO.pages }, (_, i) => `<g id="page-${i}" transform="translate(${GEO.door.x - i * 22} ${GEO.door.y})">${sheet()}</g>`).join("") +
-    `<g id="moth" transform="translate(${HERO.x + 120} 120)">${moth()}</g>` +
+    `<g id="alert" transform="translate(${SEG + GEO.phones[1][0]} ${GEO.phones[1][1] - 16})">${backing(13)}<circle cx="0" cy="0" r="10" stroke="${C.yellow}" stroke-width="1.800"/><path d="M0 -5 v6" stroke="${C.yellow}" stroke-width="2.400" stroke-linecap="round"/><circle cx="0" cy="4.500" r="1.400" fill="${C.yellow}"/></g>` +
+    Array.from({ length: GEO.pages }, (_, i) => `<g id="page-${i}" transform="translate(${900 - i * 22} 296)">${sheet()}</g>`).join("") +
+    `<g id="moth" transform="translate(${heroX + 120} 120)">${moth()}</g>` +
     `<g id="mouse" transform="translate(-40 ${GEO.mouseY})">${mouse()}</g>` +
     helper("satellite") + helper("detective") +
-    `<g id="hero" transform="translate(${HERO.x} ${FLOOR_Y})"><ellipse cx="0" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/>` +
+    `<g id="hero" transform="translate(${heroX} ${FLOOR_Y})"><ellipse cx="0" cy="1" rx="26" ry="4" fill="#000000" fill-opacity="0.6"/>` +
     `<g id="haze-lantern" transform="translate(0 ${L.lantern.y - FLOOR_Y})"><circle cx="0" cy="0" r="${L.lantern.radius}" fill="url(#lantern-glow)"/></g>` +
     `<g id="hero-flip"><g id="hero-body"><g transform="scale(${s})">${searcher({ rig: wedge(B.main, s) })}` +
     // The headlamp: a small lamp on the hood and its own little beam.
     `<g id="headlamp" transform="translate(${L.head.dx / s} ${(L.head.y - FLOOR_Y) / s})"><g id="haze-head" transform="rotate(${L.head.angle})"><path d="${wedge(L.head, s)}" fill="url(#hz-head)"/></g><rect x="-6" y="-7" width="12" height="12" rx="4" fill="${C.slate}"/><circle cx="2" cy="-1" r="4" fill="${C.beamCore}"/></g>` +
     `</g></g></g></g>` +
     helper("intern") + helper("crawler") + helper("dog") +
-    `<g id="burst" transform="translate(${HERO.x} 200)"><circle cx="0" cy="0" r="12" stroke="${C.beamCore}" stroke-width="1.500"/>${ring}</g>`
+    `<g id="burst" transform="translate(${heroX} 200)"><circle cx="0" cy="0" r="12" stroke="${C.beamCore}" stroke-width="1.500"/>${ring}</g>` +
+    `<g id="fore-a">${foreground()}</g><g id="fore-b" transform="translate(${GEO.fore.period} 0)">${foreground()}</g>`
   );
 }
+
+// The whole loop laid end to end in one colouring, for review.
+const strip = (t, lit) => Array.from({ length: GEO.designs }, (_, d) => g(`translate(${d * SEG} 0)`, segment(d, t, lit))).join("");
 
 // ───────────────────────── Files ─────────────────────────
 const write = (name, content) => writeFileSync(out + name, content);
 
 write("rive-scene.svg", svg(GEO.width, GEO.height, rigScene()));
-// The whole room in each colouring, for review.
-write("room-dark.svg", svg(GEO.width, GEO.height, room(UNLIT, false)));
-write("room-lit.svg", svg(GEO.width, GEO.height, room(LIT, true)));
+write("strip-dark.svg", svg(GEO.designs * SEG, GEO.height, strip(UNLIT, false)));
+write("strip-lit.svg", svg(GEO.designs * SEG, GEO.height, strip(LIT, true)));
+write("skyline.svg", svg(GEO.sky.period, GEO.height, skyline()));
 
 for (const [name, draw] of Object.entries(FINDS)) write(`find-${name}.svg`, svg(80, 80, draw(LIT)));
 const cast = [[intern(), 80, 200], [crawler(), 250, 200], [dog(), 430, 200], [detective(), 610, 200]];

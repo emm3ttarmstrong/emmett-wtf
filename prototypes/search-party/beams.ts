@@ -53,29 +53,57 @@ export function headBeam(heroX: number, facing: 1 | -1, state: Economy): Beam {
   return sized({ x: heroX + facing * head.dx, y: head.y, angle: facing === 1 ? head.angle : 180 - head.angle, length: head.length, near: head.near, far: head.far }, headSize(state));
 }
 
-// The lights that belong to the room: the ceiling bulbs that have been fixed, and the moon once the curtains are open.
-export function roomLights(time: number, state: Economy): Beam[] {
-  const { bulbs, bulb, moon } = GEO.lights;
-  const lights = bulbs.slice(0, state.levels.bulbs).map((at) => sized({ ...at, angle: 90, ...bulb }, 1));
-  if (state.levels.curtains > 0) lights.push(sized({ ...moon, angle: moonAngle(time) }, 1));
-  return lights;
+// The walk is a loop of places, each one segment wide. These say which place a stretch of the world is.
+export const VIEW = GEO.width;
+export const designOf = (segment: number) => ((segment % GEO.designs) + GEO.designs) % GEO.designs;
+// The segments that are at least partly in view, with a little margin either side.
+export function segmentsInView(camX: number, margin = 60) {
+  const first = Math.floor((camX - margin) / GEO.segment);
+  const last = Math.floor((camX + VIEW + margin) / GEO.segment);
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i);
+}
+
+// The ceiling bulbs in view that have been fixed, as world positions.
+export function bulbsInView(camX: number, state: Economy) {
+  const working = TUNING.bulbOrder.slice(0, TUNING.bulbsLit[state.levels.bulbs]) as readonly number[];
+  return segmentsInView(camX)
+    .filter((k) => working.includes(designOf(k)))
+    .map((k) => k * GEO.segment + GEO.lights.bulb.x);
+}
+
+// The window the moon shines through, if the curtains are open and one is in view: the one nearest the middle.
+export function moonWindow(camX: number, state: Economy) {
+  if (state.levels.curtains === 0) return null;
+  const windows = GEO.lights.moon.windows as Record<string, number>;
+  const inView = segmentsInView(camX, 0).flatMap((k) => (String(designOf(k)) in windows ? [k * GEO.segment + windows[String(designOf(k))]] : []));
+  const middle = camX + VIEW / 2;
+  return inView.sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle))[0] ?? null;
 }
 
 export const moonAngle = (time: number) => GEO.lights.moon.angle + GEO.lights.moon.swing * Math.sin(time * 0.1);
 
-// Each helper follows a fixed path that depends only on the clock, so the game and the drawing always agree.
-// They wander the whole width of the room, slowly enough for their lights to rest on things.
-export function posesAt(time: number, state: Economy): Poses {
+// The lights that belong to the places in view: working ceiling bulbs, and the moon once the curtains are open.
+export function roomLights(time: number, camX: number, state: Economy): Beam[] {
+  const { bulb, moon } = GEO.lights;
+  const lights = bulbsInView(camX, state).map((x) => sized({ x, y: bulb.y, angle: 90, length: bulb.length, near: bulb.near, far: bulb.far }, 1));
+  const window = moonWindow(camX, state);
+  if (window !== null) lights.push(sized({ x: window, y: moon.y, angle: moonAngle(time), length: moon.length, near: moon.near, far: moon.far }, 1));
+  return lights;
+}
+
+// The crew walks with the searcher. Each follows a fixed path across the view that depends only on the clock,
+// so the game and the drawing always agree, slowly enough for their lights to rest on things.
+export function posesAt(time: number, camX: number, state: Economy): Poses {
   const b = GEO.beams;
-  const middle = GEO.width / 2;
+  const middle = camX + VIEW / 2;
   const pose = (name: keyof Poses, x: number, angle: number) => ({ x, beam: sized({ x: x + b[name].dx, y: b[name].oy, angle, length: b[name].length, near: b[name].near, far: b[name].far }, crewSize(state, name)) });
   return {
-    intern: pose("intern", middle + 480 * Math.sin(time * 0.045), -35 + 10 * Math.sin(time * 1.1) + 4 * Math.sin(time * 2.7)),
-    crawler: pose("crawler", middle + 30 + 470 * Math.sin(time * 0.07 + 1), -152 + 20 * Math.sin(time * 0.9)),
-    detective: pose("detective", middle - 60 + 430 * Math.sin(time * 0.028 + 2), -18 + 20 * Math.sin(time * 0.18)),
-    satellite: pose("satellite", middle + 520 * Math.sin(time * 0.05 + 4), 90 + 14 * Math.sin(time * 0.37)),
+    intern: pose("intern", middle + 380 * Math.sin(time * 0.045), -35 + 10 * Math.sin(time * 1.1) + 4 * Math.sin(time * 2.7)),
+    crawler: pose("crawler", middle + 30 + 370 * Math.sin(time * 0.07 + 1), -152 + 20 * Math.sin(time * 0.9)),
+    detective: pose("detective", middle - 60 + 330 * Math.sin(time * 0.028 + 2), -18 + 20 * Math.sin(time * 0.18)),
+    satellite: pose("satellite", middle + 420 * Math.sin(time * 0.05 + 4), 90 + 14 * Math.sin(time * 0.37)),
   };
 }
 
 // Where the dog would be if it had nothing to chase.
-export const dogPatrol = (time: number) => GEO.width / 2 + 520 * Math.sin(time * 0.06 + 3);
+export const dogPatrol = (time: number, camX: number) => camX + VIEW / 2 + 400 * Math.sin(time * 0.06 + 3);

@@ -39,26 +39,30 @@ export type Glint = { x: number; y: number; state: "on" | "pop" | "off"; timer: 
 // A loose sheet blowing through the room. The big one is "the page".
 export type Sheet = { active: boolean; x: number; baseY: number; speed: number; phase: number; big: boolean };
 
+// Everything in the room is placed in world space: x keeps growing as the searcher walks. The view shows a window
+// of it that starts at `camX`.
 export type World = {
   time: number;
+  camX: number;
   hero: {
     x: number;
+    // How fast the searcher is walking, in pixels a second.
+    speed: number;
     // The torch direction as a turn from straight up: 0 is up, 90 is right, -90 is left. Straight down is never crossed.
     turn: number;
     // Where the torch settles when nothing is tapped.
     rest: number;
     facing: 1 | -1;
     target: Point | null;
-    targetX: number;
     releaseAt: number;
     walking: boolean;
     // When the player last pointed the torch. The torch only pays its bonus while it is being used.
     aimedAt: number;
   };
   glints: Glint[];
-  // When each stash can next be rummaged, and how far through rummaging it a light is (0 to 1).
-  stashReadyAt: number[];
-  stashCharge: number[];
+  // Stashes that have been touched, keyed by "<segment>:<slot>": when each is ready again, and how far through
+  // rummaging it a light is (0 to 1). A stash that isn't listed is ready and untouched.
+  stashes: Record<string, { readyAt: number; charge: number }>;
   mouse: { active: boolean; x: number; dir: 1 | -1; nextAt: number };
   dog: { x: number; dir: 1 | -1 };
   // Where the latest find sits on the floor: beside wherever the searcher was when it turned up.
@@ -67,11 +71,12 @@ export type World = {
   nextEventAt: number;
   flashFrom: number;
   moth: { active: boolean; x: number; y: number; held: number; leaveAt: number };
-  phone: { active: boolean; until: number; charge: number };
+  phone: { active: boolean; until: number; charge: number; x: number; y: number };
   sheets: Sheet[];
 };
 
 // Where every helper is and where its light points this instant.
 export type Poses = Record<"intern" | "crawler" | "detective" | "satellite", { x: number; beam: Beam }>;
 
-export type WorldEvent = { type: "burst"; x: number; y: number } | { type: "shake"; index: number } | { type: "tap" } | { type: "notice"; text: string };
+// A burst's position is in world space.
+export type WorldEvent = { type: "burst"; x: number; y: number } | { type: "tap" } | { type: "notice"; text: string };

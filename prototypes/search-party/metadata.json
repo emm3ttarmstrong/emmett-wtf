@@ -1,12 +1,12 @@
 {
   "title": "Search Party",
-  "description": "A tiny incremental game for the 404 page: sweep a torch through a dark room to collect clues, hire helpers, and never find the page. The scene is a Rive file built through the Rive MCP.",
+  "description": "A tiny incremental game for the 404 page: amble through an endless loop of dark rooms, sweep a torch for clues, and never find the page. The scene is a Rive file built through the Rive MCP.",
   "tags": [
     "game",
     "rive"
   ],
   "createdAt": "2026-11-23",
-  "updatedAt": "2026-11-24T00:47:32.000Z",
+  "updatedAt": "2026-11-24T01:10:43.000Z",
   "hidden": false,
   "public": false
 }
