@@ -19,11 +19,12 @@ export function inBeam(beam: Beam, point: Point, margin = 4) {
 
 export const torchHalf = (state: Economy) => TUNING.torchHalf + TUNING.torchHalfStep * state.upgrades.torch;
 
-// The searcher's hand, which the torch turns around. It swaps sides when the searcher faces the other way.
-export const handOf = (heroX: number, turn: number): Point => ({ x: heroX + (turn >= 0 ? 1 : -1) * GEO.hero.handX, y: GEO.hero.handY });
+// The searcher's hand, which the torch turns around. `flip` runs from -1 to 1 as the searcher turns round,
+// so the hand slides across instead of jumping.
+export const handOf = (heroX: number, flip: number): Point => ({ x: heroX + flip * GEO.hero.handX, y: GEO.hero.handY });
 
-export function torchBeam(heroX: number, turn: number, state: Economy): Beam {
-  return { ...handOf(heroX, turn), angle: turn - 90, half: torchHalf(state), length: GEO.beams.main.length };
+export function torchBeam(heroX: number, flip: number, turn: number, state: Economy): Beam {
+  return { ...handOf(heroX, flip), angle: turn - 90, half: torchHalf(state), length: GEO.beams.main.length };
 }
 
 // The turn that points the torch from a hand at a point, kept away from straight down.

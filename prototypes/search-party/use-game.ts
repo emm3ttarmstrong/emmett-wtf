@@ -76,10 +76,19 @@ export function useGame() {
     setState(game.current.state);
   }, []);
 
-  const tap = useCallback((point: Point) => {
+  // Points the searcher at a spot. `press` is true for a fresh tap and false while a finger is dragging.
+  const aim = useCallback((point: Point, press: boolean) => {
     if (!game.current) return;
     game.current.world = tapWorld(game.current.world, point);
-    game.current.events.push({ type: "tap" });
+    if (press) game.current.events.push({ type: "tap" });
+  }, []);
+  // Starts again from nothing: no clues, no helpers, no upgrades, and a fresh room.
+  const restart = useCallback(() => {
+    if (!game.current) return;
+    game.current.state = newGame(Date.now());
+    game.current.world = createWorld(Math.random);
+    setState(game.current.state);
+    save(game.current.state);
   }, []);
   const hireHelper = useCallback((id: HelperId) => change((s) => hire(s, id)), [change]);
   const buyUpgrade = useCallback((id: UpgradeId) => change((s) => upgrade(s, id)), [change]);
@@ -88,5 +97,5 @@ export function useGame() {
     painter.current = paint;
   }, []);
 
-  return { state, tap, hire: hireHelper, upgrade: buyUpgrade, setPainter };
+  return { state, aim, restart, hire: hireHelper, upgrade: buyUpgrade, setPainter };
 }

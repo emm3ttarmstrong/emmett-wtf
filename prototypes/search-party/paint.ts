@@ -12,7 +12,8 @@ const GLINT_SIZE = 135;
 
 function glintScale(glint: Glint, index: number, time: number) {
   if (glint.state === "off") return 0;
-  if (glint.state === "on") return GLINT_SIZE * (0.82 + 0.18 * Math.sin(time * 3 + index * 1.7));
+  // A glint under a light swells and flickers faster as it is found.
+  if (glint.state === "on") return GLINT_SIZE * (0.82 + 0.75 * glint.charge + (0.18 + 0.12 * glint.charge) * Math.sin(time * (3 + 14 * glint.charge) + index * 1.7));
   // A collected glint swells and then vanishes.
   const done = 1 - glint.timer / TUNING.popSeconds;
   return GLINT_SIZE * (1 + 1.6 * done) * (1 - done * done);
@@ -22,13 +23,13 @@ function glintScale(glint: Glint, index: number, time: number) {
 export function frameValues(world: World, state: Economy) {
   const { hero } = world;
   const poses = posesAt(world.time);
-  const hand = handOf(hero.x, hero.turn);
+  const hand = handOf(hero.x, hero.flip);
   const has = (id: "intern" | "crawler" | "detective" | "satellite") => state.owned[id] > 0;
   const numbers: Record<string, number> = {
     heroX: hero.x,
-    facing: hero.turn >= 0 ? 100 : -100,
+    facing: hero.flip * 100,
     // The torch angle inside the searcher's own, possibly mirrored, space.
-    aim: Math.abs(hero.turn) - 90,
+    aim: hero.facing * hero.turn - 90,
     beamX: hand.x,
     beamAngle: hero.turn - 90,
     beamWide: (100 * Math.tan(torchHalf(state) * DEG)) / Math.tan(GEO.beams.main.half * DEG),
@@ -55,7 +56,8 @@ export function frameValues(world: World, state: Economy) {
     numbers[`g${i}s`] = glintScale(glint, i, world.time);
   });
   world.stashReadyAt.forEach((readyAt, i) => {
-    numbers[`stash${i}`] = world.time >= readyAt ? 100 * (0.9 + 0.15 * Math.sin(world.time * 4 + i)) : 0;
+    const charge = world.stashCharge[i];
+    numbers[`stash${i}`] = world.time >= readyAt ? 100 * (0.9 + 0.5 * charge + 0.15 * Math.sin(world.time * (4 + 12 * charge) + i)) : 0;
   });
   const booleans: Record<string, boolean> = { walking: hero.walking };
   for (const helper of HELPERS) booleans[helper.id] = state.owned[helper.id] > 0;

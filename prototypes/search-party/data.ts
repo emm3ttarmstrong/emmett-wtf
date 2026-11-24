@@ -45,6 +45,10 @@ export const FINDS: readonly Find[] = [
 export const TUNING = {
   // A glint is worth one clue plus this share of what the helpers earn each second.
   glintShare: 0.4,
+  // A glint found by the searcher's own torch is worth this many times one found by a helper, plus one per bulb level.
+  torchBonus: 3,
+  // The torch counts as in use for this long after the last tap or drag. After that it finds things like a helper does.
+  attentionSeconds: 5,
   stashGlints: 12,
   mouseGlints: 30,
   stashCooldown: 40,
@@ -54,12 +58,23 @@ export const TUNING = {
   mouseSpeed: 120,
   respawn: [3, 9],
   popSeconds: 0.3,
-  // The torch: half-angle in degrees, turning speed in degrees a second, walking speed in pixels a second.
+  // How long a light has to rest on a glint to find it, and how long a half-found glint takes to fade back.
+  torchDwell: 0.4,
+  helperDwell: 0.7,
+  stashDwell: 0.8,
+  dwellFade: 1.5,
+  // The torch: half-angle in degrees, top turning speed in degrees a second, top walking speed in pixels a second.
   torchHalf: 13,
   torchHalfStep: 3,
-  turnSpeed: 80,
-  walkSpeed: 45,
-  sweepGrowth: 1.3,
+  turnSpeed: 170,
+  walkSpeed: 120,
+  sweepGrowth: 1.25,
+  // How sharply turning and walking slow down as they arrive. Higher is snappier.
+  turnEase: 6,
+  walkEase: 4.5,
+  // The searcher turns round once the torch is this far past straight up, which stops flickering near the top.
+  flipPast: 12,
+  flipSpeed: 7,
   // How far short of a tapped point the searcher stops, so the beam has room to reach it.
   standOff: 70,
   holdSeconds: 1.2,

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { HELPERS, UPGRADES } from "./data";
 import { costOf, format, upgradeCost } from "./game";
@@ -30,9 +30,40 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-type Props = { state: Economy; onHire: (id: HelperId) => void; onUpgrade: (id: UpgradeId) => void };
+// Asks once before erasing, in place, so the row keeps its height.
+function StartOver({ onRestart }: { onRestart: () => void }) {
+  const [asking, setAsking] = useState(false);
+  return (
+    <div className="flex h-15 items-center justify-end gap-2">
+      {asking ? (
+        <>
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">Erase everything?</span>
+          <Button variant="outline" className="h-11 shrink-0" onClick={() => setAsking(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            className="h-11 shrink-0"
+            onClick={() => {
+              setAsking(false);
+              onRestart();
+            }}
+          >
+            Erase
+          </Button>
+        </>
+      ) : (
+        <Button variant="outline" className="h-11" onClick={() => setAsking(true)}>
+          Start over
+        </Button>
+      )}
+    </div>
+  );
+}
 
-export function Shop({ state, onHire, onUpgrade }: Props) {
+type Props = { state: Economy; onHire: (id: HelperId) => void; onUpgrade: (id: UpgradeId) => void; onRestart: () => void };
+
+export function Shop({ state, onHire, onUpgrade, onRestart }: Props) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto border-t border-border px-4 pb-2">
       <Section title="Your torch">
@@ -46,6 +77,7 @@ export function Shop({ state, onHire, onUpgrade }: Props) {
           <Row key={helper.id} name={helper.name} note={helper.note} count={`×${state.owned[helper.id]}`} cost={costOf(helper, state.owned[helper.id])} clues={state.clues} onBuy={() => onHire(helper.id)} />
         ))}
       </Section>
+      <StartOver onRestart={onRestart} />
     </div>
   );
 }

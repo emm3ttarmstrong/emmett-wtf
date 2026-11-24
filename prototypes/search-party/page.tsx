@@ -10,10 +10,10 @@ export default function SearchParty() {
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
       <div className="mx-auto aspect-[39/38] h-[44dvh] max-w-full shrink-0 p-2 pb-0">
-        <Scene onTap={game.tap} setPainter={game.setPainter} />
+        <Scene onAim={game.aim} setPainter={game.setPainter} />
       </div>
       <Scoreboard state={game.state} />
-      <Shop state={game.state} onHire={game.hire} onUpgrade={game.upgrade} />
+      <Shop state={game.state} onHire={game.hire} onUpgrade={game.upgrade} onRestart={game.restart} />
     </div>
   );
 }

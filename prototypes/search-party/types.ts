@@ -20,8 +20,9 @@ export type Point = { x: number; y: number };
 // A cone of light: where it starts, which way it points in degrees (0 is right, negative is up), and its size.
 export type Beam = { x: number; y: number; angle: number; half: number; length: number };
 
-// A glint is waiting to be collected ("on"), bursting after a beam touched it ("pop"), or gone until it respawns ("off").
-export type Glint = { x: number; y: number; state: "on" | "pop" | "off"; timer: number };
+// A glint is waiting to be found ("on"), bursting once found ("pop"), or gone until it respawns ("off").
+// `charge` runs from 0 to 1 while a light rests on it, and it is found when the charge is full.
+export type Glint = { x: number; y: number; state: "on" | "pop" | "off"; timer: number; charge: number };
 
 export type World = {
   time: number;
@@ -31,14 +32,20 @@ export type World = {
     turn: number;
     // Where the torch settles when nothing is tapped.
     rest: number;
+    // Which way the searcher faces, and how far through turning round the drawing is (-1 to 1).
+    facing: 1 | -1;
+    flip: number;
     target: Point | null;
     targetX: number;
     releaseAt: number;
     walking: boolean;
+    // When the player last pointed the torch. The torch only pays its bonus while it is being used.
+    aimedAt: number;
   };
   glints: Glint[];
-  // When each stash can next be rummaged.
+  // When each stash can next be rummaged, and how far through rummaging it the torch is (0 to 1).
   stashReadyAt: number[];
+  stashCharge: number[];
   mouse: { active: boolean; x: number; dir: 1 | -1; nextAt: number };
 };
 

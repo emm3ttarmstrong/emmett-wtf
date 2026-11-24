@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type MouseEvent } from "react";
+import { useEffect, type MouseEvent, type PointerEvent } from "react";
 import { Fit, Layout, useRive } from "@rive-app/react-canvas";
 import { GEO, RIVE } from "./data";
 import { findsSoFar } from "./game";
@@ -12,13 +12,14 @@ const src = new URL("./search-party.riv", import.meta.url).href;
 const layout = new Layout({ fit: Fit.Contain });
 
 type Props = {
-  onTap: (point: Point) => void;
+  // `press` is true for a fresh tap and false while a finger is dragging.
+  onAim: (point: Point, press: boolean) => void;
   setPainter: (paint: Painter | null) => void;
 };
 
 // The Rive scene. The game decides where everything is; this writes those values into the file's view model each frame
 // and fires its triggers. Rive draws the room, the light and every animation that plays on its own.
-export function Scene({ onTap, setPainter }: Props) {
+export function Scene({ onAim, setPainter }: Props) {
   const { rive, setCanvasRef, setContainerRef } = useRive({ src, artboard: RIVE.artboard, stateMachine: RIVE.stateMachine, autoplay: true, autoBind: true, layout });
   const vm = rive?.viewModelInstance ?? null;
 
@@ -64,11 +65,21 @@ export function Scene({ onTap, setPainter }: Props) {
     return () => setPainter(null);
   }, [vm, setPainter]);
 
-  const tap = (event: MouseEvent<HTMLButtonElement>) => {
+  const pointOf = (event: PointerEvent<HTMLButtonElement>): Point => {
     const box = event.currentTarget.getBoundingClientRect();
-    // A keyboard press has no position, so it searches a random spot.
-    if (event.detail === 0) onTap({ x: Math.random() * GEO.width, y: Math.random() * GEO.floor });
-    else onTap({ x: ((event.clientX - box.left) / box.width) * GEO.width, y: ((event.clientY - box.top) / box.height) * GEO.height });
+    return { x: ((event.clientX - box.left) / box.width) * GEO.width, y: ((event.clientY - box.top) / box.height) * GEO.height };
+  };
+  const press = (event: PointerEvent<HTMLButtonElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    onAim(pointOf(event), true);
+  };
+  // Holding and dragging keeps the searcher following the finger.
+  const drag = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) onAim(pointOf(event), false);
+  };
+  // A keyboard press has no position, so it searches a random spot. Pointer presses are handled above.
+  const key = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.detail === 0) onAim({ x: Math.random() * GEO.width, y: Math.random() * GEO.floor }, true);
   };
 
   return (
@@ -76,8 +87,10 @@ export function Scene({ onTap, setPainter }: Props) {
       ref={setContainerRef}
       type="button"
       aria-label="Search the room"
-      onClick={tap}
-      className="block size-full cursor-pointer touch-manipulation overflow-hidden rounded-xl outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      onPointerDown={press}
+      onPointerMove={drag}
+      onClick={key}
+      className="block size-full cursor-pointer touch-none overflow-hidden rounded-xl outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <canvas ref={setCanvasRef} className="block size-full" />
     </button>

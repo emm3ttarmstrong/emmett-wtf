@@ -33,12 +33,14 @@ geometry.json ──► art/build.mjs ──► art/svg/rive-scene.svg
 ### The loop
 
 - **Clues are the only currency.** They buy torch upgrades and helpers. The eight finds unlock on clues collected over the whole game, and the page itself is not on the list.
-- **Glints.** Fourteen glints sit in the room. One is collected the moment a light touches it, pops, and comes back somewhere else three to nine seconds later.
-- **Tapping.** A tap sets a target. The searcher walks to stand 70px short of it and the torch turns towards it at a limited speed, so it sweeps through everything in between. The torch never passes straight down; going from one side to the other it swings over the top, and the searcher turns to face the other way as it crosses.
-- **Left alone,** the torch drifts four degrees either side of where it stopped and catches almost nothing.
+- **Glints.** Fourteen glints sit in the room. A light has to rest on a glint to find it: 0.4 seconds under the searcher's torch, 0.7 under a helper's. A glint swells and flickers while it is being found, fades back if the light moves on, and after it pops it comes back somewhere else three to nine seconds later. Sweeping past a row of glints finds none of them.
+- **Tapping and dragging.** A tap sets a target, and holding and dragging keeps moving it. The searcher walks to stand 70px short of the target and the torch turns towards it. Both have a top speed and ease in to where they are going. The torch never passes straight down; going from one side to the other it swings over the top.
+- **Facing.** The searcher turns round only once the torch is 12 degrees past straight up, so a target overhead can't make the facing flicker. The turn itself takes about a quarter of a second, with the hand sliding across so the beam never jumps.
+- **Left alone,** the torch drifts four degrees either side of where it stopped. Five seconds after the last tap it stops paying its bonus and finds things as slowly as a helper's light.
 - **Helpers** earn a small amount every second and also carry real lights that follow fixed paths and collect what they cross. The dog has no light and collects along the floor.
 - **Only the searcher's torch** can rummage a stash (a marked spot on the cabinet, the boxes and the plant, ready again 40 seconds after use) and catch the mouse that runs along the skirting board every 25 to 45 seconds.
-- **Value.** A glint pays one clue plus 40% of what the helpers earn per second. The Brighter bulb upgrade multiplies that for the searcher's torch only, which is what keeps tapping ahead of waiting. A stash pays 12 glints and the mouse pays 30.
+- **Value.** A helper-found glint pays one clue plus 40% of what the helpers earn per second. One found by a torch in use pays three times that, plus once more per Brighter bulb level, which is what keeps tapping ahead of waiting. A stash pays 12 torch glints after 0.8 seconds under the light, and the mouse pays 30 the moment it is caught.
+- **Start over.** A button at the bottom of the shop erases clues, helpers and upgrades after one confirmation, and resets the room.
 - **Away time.** Helpers' per-second earnings are credited for the time the page was closed, capped at eight hours.
 
 ### State
@@ -51,7 +53,7 @@ geometry.json ──► art/build.mjs ──► art/svg/rive-scene.svg
 ### Layout and input
 
 - One centred column: the scene (44% of the screen height, kept at the artboard's aspect), the scoreboard with a bar showing progress to the next find, and the shop, which scrolls inside the remaining space.
-- The whole scene is one button. A pointer tap targets that point. A keyboard press targets a random point.
+- The whole scene is one button. A pointer press targets that point and a drag keeps targeting. A keyboard press targets a random point.
 - Shop buttons are 44px tall and disabled when a purchase is not affordable.
 - The scene is a dark room in both themes; in light mode it reads as a dark window.
 - **Reduced motion.** The beams and the walk still move, because they are the game. The decorative reactions (tap squash, find hop, object shake) are not triggered. The file's ambient loop still runs.

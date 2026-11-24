@@ -31,7 +31,7 @@ export function helperGlintValue(state: Economy) {
 // What a glint pays when the searcher's own torch finds it. The bulb only brightens that torch,
 // which is what keeps sweeping worth more than waiting.
 export function glintValue(state: Economy) {
-  return helperGlintValue(state) * (1 + state.upgrades.bulb);
+  return helperGlintValue(state) * (TUNING.torchBonus + state.upgrades.bulb);
 }
 
 export function earn(state: Economy, clues: number): Economy {
