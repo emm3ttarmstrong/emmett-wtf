@@ -16,7 +16,7 @@ requestAnimationFrame ──► stepWorld (world.ts) ──► clues gained, eve
         │                      │                                    (Hire, Upgrade)
         │                      ▼
         └──────────► frameValues (paint.ts) ──► Rive view model "Game" ──► search-party.riv
-                                                 ~70 numbers, 6 booleans, 6 triggers
+                                                 ~180 numbers, 6 booleans, 9 triggers
                      localStorage "search-party:game" ◄── saved every 2s and on pagehide
 ```
 
@@ -33,15 +33,19 @@ geometry.json ──► art/build.mjs ──► art/svg/rive-scene.svg
 ### The loop
 
 - **Clues are the only currency.** They buy torch upgrades and helpers. The eight finds unlock on clues collected over the whole game, and the page itself is not on the list.
-- **Glints.** Fourteen glints sit in the room. A light has to rest on a glint to find it: 0.4 seconds under the searcher's torch, 0.7 under a helper's. A glint swells and flickers while it is being found, fades back if the light moves on, and after it pops it comes back somewhere else three to nine seconds later. Sweeping past a row of glints finds none of them.
-- **Tapping and dragging.** A tap sets a target, and holding and dragging keeps moving it. The searcher walks to stand 70px short of the target and the torch turns towards it. Both have a top speed and ease in to where they are going. The torch never passes straight down; going from one side to the other it swings over the top.
-- **Facing.** The searcher turns round only once the torch is 12 degrees past straight up, so a target overhead can't make the facing flicker. The turn itself takes about a quarter of a second, with the hand sliding across so the beam never jumps.
+- **The room** is 1170 wide and 380 tall, three screens' worth on a phone: a filing cabinet, boxes with a cat, a window, a bookcase, a desk with an old monitor, a door marked 404, a ladder and crates.
+- **Glints.** Thirty-six glints sit on the walls. A light has to rest on a glint to find it: 0.4 seconds under the searcher's torch, 0.7 under a helper's. Its glow grows steadily while it is being found and fades back if the light moves on. After it pops it comes back somewhere else four to ten seconds later. Sweeping past a row of glints finds none of them.
+- **Tapping and dragging.** A tap sets a target, and holding and dragging keeps moving it. The searcher only walks when the target is more than 150px away, and stops 150px short of it. The torch turns towards the target. Both have a top speed and ease in to where they are going. The torch never passes straight down.
+- **The beam** is a wedge 380px long. It is 14px wide either side at the torch, so things close to the searcher are still easy to light, and 88px either side at its far end. It does not reach across the room, which is why walking matters.
+- **Facing.** Which way the searcher faces is judged from the body, not the hand, and only changes for a target at least 12 degrees to the other side of straight up. Turning round is instant and mirrors the torch with it. (Judging from the hand made a target overhead flip the facing forever, because the hand changes sides on every flip.)
 - **Left alone,** the torch drifts four degrees either side of where it stopped. Five seconds after the last tap it stops paying its bonus and finds things as slowly as a helper's light.
-- **Helpers** earn a small amount every second and also carry real lights that follow fixed paths and collect what they cross. The dog has no light and collects along the floor.
-- **Only the searcher's torch** can rummage a stash (a marked spot on the cabinet, the boxes and the plant, ready again 40 seconds after use) and catch the mouse that runs along the skirting board every 25 to 45 seconds.
-- **Value.** A helper-found glint pays one clue plus 40% of what the helpers earn per second. One found by a torch in use pays three times that, plus once more per Brighter bulb level, which is what keeps tapping ahead of waiting. A stash pays 12 torch glints after 0.8 seconds under the light, and the mouse pays 30 the moment it is caught.
-- **Start over.** A button at the bottom of the shop erases clues, helpers and upgrades after one confirmation, and resets the room.
+- **Helpers** earn a small amount every second and wander the whole room on fixed paths, carrying lights that find what they rest on. The intern's and robot's lights are long, narrow and faint. The dog has no light and finds what is low on the wall above its nose.
+- **Only the searcher's torch** can rummage a stash (a marked spot on the cabinet, boxes, bookcase, desk, crates and plant, ready again 40 seconds after use) and catch the mouse that runs along the skirting board every 25 to 45 seconds.
+- **Value.** A helper-found glint pays one clue plus half of what the helpers earn per second. One found by a torch in use pays three times that, plus once more per Brighter bulb level. The scoreboard shows both numbers, "+N a find" and "+N/s", so the price of the next thing can be judged against them. A stash pays 12 torch glints after 0.8 seconds under the light, and the mouse pays 30 the moment it is caught.
+- **Pace.** In a simulation, a player who always lights the nearest glint and buys the cheapest thing reaches the last find in about 12 minutes; one who only shops takes about 40.
+- **A find** appears on the floor beside wherever the searcher is standing.
 - **Away time.** Helpers' per-second earnings are credited for the time the page was closed, capped at eight hours.
+- **Start over.** A button at the bottom of the shop erases clues, helpers and upgrades after one confirmation, and resets the room.
 
 ### State
 
@@ -52,22 +56,23 @@ geometry.json ──► art/build.mjs ──► art/svg/rive-scene.svg
 
 ### Layout and input
 
-- One centred column: the scene (44% of the screen height, kept at the artboard's aspect), the scoreboard with a bar showing progress to the next find, and the shop, which scrolls inside the remaining space.
+- The scene spans the full width of the page at 44% of the screen height. Under it, one centred column holds the scoreboard, with a bar showing progress to the next find, and the shop, which scrolls inside the remaining space.
+- **Camera.** The canvas is always the whole room at the height of the frame. When the frame is wider than the room, the room is centred. When it is narrower, the room slides sideways with a CSS transform so the searcher stays in the middle, easing after them and stopping at the walls. Pointer positions are measured against the room, so they stay right wherever the camera is.
 - The whole scene is one button. A pointer press targets that point and a drag keeps targeting. A keyboard press targets a random point.
 - Shop buttons are 44px tall and disabled when a purchase is not affordable.
 - The scene is a dark room in both themes; in light mode it reads as a dark window.
-- **Reduced motion.** The beams and the walk still move, because they are the game. The decorative reactions (tap squash, find hop, object shake) are not triggered. The file's ambient loop still runs.
+- **Reduced motion.** The beams and the walk still move, because they are the game. The camera snaps instead of easing, and the decorative reactions (tap squash, find hop, object shake) are not triggered. The file's ambient loop still runs.
 - There is no API and no control panel. The tuning constants are in `data.ts`.
 
 ### Rive file contract
 
-- Artboard `Scene`, 390×380. State machine `Game`. View model `Game`, bound to the artboard. `art/rig.mjs` holds the full property list.
+- Artboard `Scene`, 1170×380. State machine `Game`. View model `Game`, bound to the artboard. `art/rig.mjs` holds the full property list.
 - Angles are in degrees (Rive attaches its own "Degrees to Radians" converter). Scales are percentages, so a mirrored sprite is `-100`.
 - Searcher: `heroX`, `facing`, `aim` (the torch inside the searcher's own space), `walking`. Beam clip: `beamX`, `beamAngle`, `beamWide`.
 - Helpers: a boolean each (`intern`, `crawler`, `dog`, `detective`, `satellite`), plus `<name>X`, `<name>BeamX` and `<name>Aim`, and `dogX` and `dogDir`. A helper that isn't hired has its light parked far off the artboard.
-- Glints: `g0x`, `g0y`, `g0s` to `g13…`. Stashes: `stash0` to `stash2`. Mouse: `mouseX`, `mouseDir`. Finds: `find` from 0 to 8.
-- Triggers: `tap`, `found`, `burst` (placed by `burstX` and `burstY`), `shake0` to `shake2`.
-- Every room object exists twice, unlit and lit. The lit copy is clipped by one shape that holds all five beam cones, so every light reveals it.
+- Glints: `g0x`, `g0y`, `g0s` (size) and `g0c` (glow) to `g35…`. Stashes: `stash0` and `stash0c` to `stash5…`. Mouse: `mouseX`, `mouseDir`. Finds: `find` from 0 to 8, placed by `findX`.
+- Triggers: `tap`, `found`, `burst` (placed by `burstX` and `burstY`), `shake0` to `shake5`.
+- Every room object exists twice, unlit and lit. The lit copy is clipped by one shape that holds all five beam wedges, so every light reveals it.
 
 ### Working with the Rive MCP
 

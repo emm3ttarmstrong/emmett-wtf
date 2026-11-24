@@ -1,5 +1,5 @@
 import { FINDS } from "./data";
-import { findProgress, findsSoFar, format, nextFind, perSecond } from "./game";
+import { findProgress, findsSoFar, format, glintValue, nextFind, perSecond } from "./game";
 import type { Economy } from "./types";
 
 // One decimal while the rate is small, so the first intern visibly counts.
@@ -14,7 +14,9 @@ export function Scoreboard({ state }: { state: Economy }) {
       <div className="font-mono text-5xl leading-none font-medium tracking-tighter tabular-nums sm:text-6xl">{format(state.clues)}</div>
       <div className="flex items-baseline justify-between gap-4 text-sm text-muted-foreground">
         <span>clues</span>
-        <span className="font-mono tabular-nums">+{rate(perSecond(state))}/s</span>
+        <span className="font-mono tabular-nums">
+          +{format(glintValue(state))} a find · +{rate(perSecond(state))}/s
+        </span>
       </div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Progress to the next find" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(findProgress(state.earned) * 100)}>
         <div className="h-full origin-left bg-primary motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out" style={{ transform: `scaleX(${findProgress(state.earned)})` }} />

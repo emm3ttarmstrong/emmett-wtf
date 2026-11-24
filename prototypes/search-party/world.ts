@@ -15,18 +15,23 @@ function glide(value: number, target: number, topSpeed: number, ease: number, cr
   return towards(value, target, step);
 }
 
+// Glints appear on the wall, never on the floor, so the torch can always reach one from where the searcher stands.
 function place(random: Random): Point {
-  return { x: 16 + random() * (GEO.width - 32), y: 18 + random() * (GEO.height - 32) };
+  return { x: 16 + random() * (GEO.width - 32), y: 20 + random() * (GEO.floor - 44) };
 }
+
+// Where a find lands: on the floor just ahead of the searcher, kept inside the room.
+export const findSpot = (heroX: number, facing: 1 | -1) => Math.max(30, Math.min(GEO.width - 30, heroX + facing * 60));
 
 export function createWorld(random: Random): World {
   return {
     time: 0,
-    hero: { x: GEO.hero.x, turn: 80, rest: 80, facing: 1, flip: 1, target: null, targetX: GEO.hero.x, releaseAt: 0, walking: false, aimedAt: -Infinity },
+    hero: { x: GEO.hero.x, turn: 80, rest: 80, facing: 1, target: null, targetX: GEO.hero.x, releaseAt: 0, walking: false, aimedAt: -Infinity },
     glints: Array.from({ length: GEO.glints }, (): Glint => ({ ...place(random), state: "on", timer: 0, charge: 0 })),
     stashReadyAt: GEO.stashes.map((_, i) => TUNING.firstStash + i * 5),
     stashCharge: GEO.stashes.map(() => 0),
     mouse: { active: false, x: -40, dir: 1, nextAt: TUNING.firstMouse },
+    findX: findSpot(GEO.hero.x, 1),
   };
 }
 
@@ -51,12 +56,19 @@ export function stepWorld(world: World, state: Economy, seconds: number, random:
   const hero = { ...world.hero };
   hero.x = glide(hero.x, hero.targetX, TUNING.walkSpeed * speed, TUNING.walkEase, 8, seconds);
   hero.walking = Math.abs(hero.targetX - hero.x) > 1.5;
-  const wanted = hero.target ? turnTowards(handOf(hero.x, hero.flip), hero.target) : hero.rest + TUNING.idleDrift * Math.sin(time * 0.6);
+  // Which way to face is judged from the body, not the hand. The hand changes sides when the searcher turns round,
+  // so judging from it made a target overhead flip the facing back and forth forever.
+  if (hero.target) {
+    const fromBody = turnTowards({ x: hero.x, y: GEO.hero.handY }, hero.target);
+    const side = fromBody > TUNING.flipPast ? 1 : fromBody < -TUNING.flipPast ? -1 : hero.facing;
+    if (side !== hero.facing) {
+      // Turning round is instant and carries the torch with it, so the beam mirrors to the other side.
+      hero.facing = side;
+      hero.turn = -hero.turn;
+    }
+  }
+  const wanted = hero.target ? turnTowards(handOf(hero.x, hero.facing), hero.target) : hero.rest + TUNING.idleDrift * Math.sin(time * 0.6);
   hero.turn = glide(hero.turn, wanted, TUNING.turnSpeed * speed, TUNING.turnEase, 10, seconds);
-  // Facing only changes once the torch is clearly past the top, and the drawing turns round over a few frames.
-  if (hero.turn > TUNING.flipPast) hero.facing = 1;
-  else if (hero.turn < -TUNING.flipPast) hero.facing = -1;
-  hero.flip = towards(hero.flip, hero.facing, TUNING.flipSpeed * seconds);
   if (hero.target && !hero.walking && Math.abs(hero.turn - wanted) < 0.5) {
     if (hero.releaseAt === Infinity) hero.releaseAt = time + TUNING.holdSeconds;
     else if (time >= hero.releaseAt) {
@@ -65,18 +77,20 @@ export function stepWorld(world: World, state: Economy, seconds: number, random:
     }
   }
 
-  const torch = torchBeam(hero.x, hero.flip, hero.turn, state);
+  const torch = torchBeam(hero.x, hero.facing, hero.turn, state);
   // A torch nobody is pointing still finds things, but slowly and without its bonus, like a helper's light.
   const attentive = time - hero.aimedAt <= TUNING.attentionSeconds;
   const poses = posesAt(time);
   const lights = (["intern", "crawler", "detective", "satellite"] as const).filter((id) => state.owned[id] > 0).map((id) => poses[id].beam);
-  const nose = state.owned.dog > 0 ? { x: poses.dog.x + poses.dog.dir * 32, y: GEO.dog.y - 12 } : null;
+  // The dog has no light. It finds whatever is low on the wall above its nose.
+  const noseX = state.owned.dog > 0 ? poses.dog.x + poses.dog.dir * 32 : null;
+  const sniffed = (glint: Point) => noseX !== null && Math.abs(glint.x - noseX) <= GEO.dog.reach && glint.y >= GEO.dog.low;
 
   const glints = world.glints.map((glint): Glint => {
     if (glint.state === "on") {
       // A light has to rest on a glint to find it. Sweeping past only starts the job, and it fades if the light moves on.
       const mine = attentive && inBeam(torch, glint);
-      const theirs = !mine && (inBeam(torch, glint) || lights.some((beam) => inBeam(beam, glint)) || (nose !== null && Math.hypot(glint.x - nose.x, glint.y - nose.y) <= GEO.dog.reach));
+      const theirs = !mine && (inBeam(torch, glint) || lights.some((beam) => inBeam(beam, glint)) || sniffed(glint));
       const change = mine ? seconds / TUNING.torchDwell : theirs ? seconds / TUNING.helperDwell : -seconds / TUNING.dwellFade;
       const charge = Math.max(0, glint.charge + change);
       if (charge < 1) return charge === glint.charge ? glint : { ...glint, charge };
@@ -116,5 +130,5 @@ export function stepWorld(world: World, state: Economy, seconds: number, random:
     mouse = { active: true, dir, x: dir === 1 ? -20 : GEO.width + 20, nextAt: 0 };
   }
 
-  return { world: { time, hero, glints, stashReadyAt, stashCharge, mouse }, gained, events };
+  return { world: { time, hero, glints, stashReadyAt, stashCharge, mouse, findX: world.findX }, gained, events };
 }

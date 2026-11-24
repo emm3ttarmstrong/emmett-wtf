@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AWAY_LIMIT_SECONDS, STORAGE_KEY } from "./data";
 import { catchUp, earn, findsSoFar, hire, newGame, perSecond, restore, upgrade } from "./game";
 import type { Economy, HelperId, Point, UpgradeId, World, WorldEvent } from "./types";
-import { createWorld, stepWorld, tapWorld } from "./world";
+import { createWorld, findSpot, stepWorld, tapWorld } from "./world";
 
 const HUD_MS = 100;
 const SAVE_MS = 2000;
@@ -47,10 +47,12 @@ export function useGame() {
       const step = stepWorld(current.world, idle, Math.min(elapsed, MAX_STEP), Math.random);
       const before = findsSoFar(idle.earned).length;
       current.state = earn(idle, step.gained);
-      current.world = step.world;
+      // A new find lands beside wherever the searcher is standing.
+      const found = findsSoFar(current.state.earned).length !== before;
+      current.world = found ? { ...step.world, findX: findSpot(step.world.hero.x, step.world.hero.facing) } : step.world;
       painter.current?.(current.world, current.state, [...current.events, ...step.events]);
       current.events = [];
-      if (time - shown >= HUD_MS || findsSoFar(current.state.earned).length !== before) {
+      if (time - shown >= HUD_MS || found) {
         shown = time;
         setState(current.state);
       }

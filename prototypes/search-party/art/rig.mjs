@@ -78,11 +78,13 @@ const HERO = GEO.hero;
 const HAND = { x: HERO.x + HERO.handX, y: HERO.handY };
 export const FINDS = ["sock", "semicolon", "remote", "keys", "socket", "plot", "atlantis", "note"];
 // Where the art generator places each helper. `crawler` is the robot.
-const HELPER_X = { satellite: 110, detective: 30, intern: 140, crawler: 290, dog: 70 };
+const HELPER_X = { satellite: 500, detective: 30, intern: 420, crawler: 700, dog: 200 };
 const BEAMED = ["intern", "crawler", "detective", "satellite"];
 const HELPERS = ["satellite", "detective", "intern", "crawler", "dog"];
 const SHAKES = GEO.stashes.map((s) => s.object);
-const SHAKE_PIVOT = { cabinet: 43, boxes: 128, plant: 372 };
+const SHAKE_PIVOT = Object.fromEntries(GEO.stashes.map((s) => [s.object, s.pivotX]));
+// A find appears beside the searcher, so every find and its sparkles share one bound position.
+const FIND_START = { x: HERO.x + 60, y: GEO.floor };
 const helperY = (n) => (n === "dog" ? GEO.dog.y : GEO.beams[n].y);
 
 const P = (name, propertyType) => ({ name, propertyType });
@@ -91,9 +93,11 @@ const PROPERTIES = [
   P("heroX", "number"), P("facing", "number"), P("beamX", "number"), P("beamAngle", "number"), P("beamWide", "number"), P("walking", "boolean"),
   P("burst", "trigger"), P("burstX", "number"), P("burstY", "number"), P("mouseX", "number"), P("mouseDir", "number"), P("dogX", "number"), P("dogDir", "number"),
   P("internX", "number"), P("internBeamX", "number"), P("internAim", "number"), P("crawlerX", "number"), P("crawlerBeamX", "number"), P("crawlerAim", "number"),
-  P("detectiveBeamX", "number"), P("detectiveAim", "number"), P("satelliteX", "number"), P("satelliteBeamX", "number"), P("satelliteAim", "number"),
-  ...Array.from({ length: GEO.glints }, (_, i) => [P(`g${i}x`, "number"), P(`g${i}y`, "number"), P(`g${i}s`, "number")]).flat(),
-  ...GEO.stashes.flatMap((_, i) => [P(`stash${i}`, "number"), P(`shake${i}`, "trigger")]),
+  P("detectiveX", "number"), P("detectiveBeamX", "number"), P("detectiveAim", "number"), P("satelliteX", "number"), P("satelliteBeamX", "number"), P("satelliteAim", "number"),
+  // Each glint has a position, a size, and a glow that grows while a light is finding it.
+  ...Array.from({ length: GEO.glints }, (_, i) => [P(`g${i}x`, "number"), P(`g${i}y`, "number"), P(`g${i}s`, "number"), P(`g${i}c`, "number")]).flat(),
+  ...GEO.stashes.flatMap((_, i) => [P(`stash${i}`, "number"), P(`stash${i}c`, "number"), P(`shake${i}`, "trigger")]),
+  P("findX", "number"),
 ];
 
 async function model() {
@@ -120,8 +124,8 @@ const stages = {
     await at("leg-r", HERO.x + 15.5 * HERO.scale, GEO.floor - 32 * HERO.scale);
     await at("blink", HERO.x + 14.5 * HERO.scale, GEO.floor - 143 * HERO.scale);
     await at("spider", 48, 48);
-    await at("sparkles", GEO.findSpot.x, GEO.findSpot.y - 24);
-    for (const name of FINDS) await at(`find-${name}`, GEO.findSpot.x, GEO.findSpot.y);
+    await at("sparkles", FIND_START.x, FIND_START.y - 24);
+    for (const name of FINDS) await at(`find-${name}`, FIND_START.x, FIND_START.y);
     for (const name of HELPERS) await at(`helper-${name}`, HELPER_X[name], helperY(name));
     await at("dog-flip", HELPER_X.dog, GEO.dog.y);
     for (const name of BEAMED) {
@@ -130,7 +134,7 @@ const stages = {
       await at(`haze-${name}`, HELPER_X[name] + b.dx, b.oy);
     }
     await at("mouse", -40, GEO.mouseY);
-    await at("burst", 195, 200);
+    await at("burst", HERO.x, 200);
     for (const name of SHAKES) for (const tone of ["dark", "lit"]) await at(`${name}-${tone}`, SHAKE_PIVOT[name], GEO.floor);
     return done.map((d) => `${d.name} ${d.moved}`);
   },
@@ -162,8 +166,7 @@ const stages = {
         await bind(`${part}-${name}`, K.x, `${name}BeamX`);
         await bind(`${part}-${name}`, K.r, `${name}Aim`);
       }
-      // The detective stands still, so only the light is bound.
-      if (name !== "detective") await bind(`helper-${name}`, K.x, `${name}X`);
+      await bind(`helper-${name}`, K.x, `${name}X`);
     }
     await bind("helper-dog", K.x, "dogX");
     await bind("dog-flip", K.sx, "dogDir");
@@ -172,11 +175,16 @@ const stages = {
       await bind(`glint-${i}`, K.y, `g${i}y`);
       await bind(`glint-${i}`, K.sx, `g${i}s`);
       await bind(`glint-${i}`, K.sy, `g${i}s`);
+      await bind(`glow-${i}`, K.sx, `g${i}c`);
+      await bind(`glow-${i}`, K.sy, `g${i}c`);
     }
     for (let i = 0; i < GEO.stashes.length; i++) {
       await bind(`stash-${i}`, K.sx, `stash${i}`);
       await bind(`stash-${i}`, K.sy, `stash${i}`);
+      await bind(`stash-glow-${i}`, K.sx, `stash${i}c`);
+      await bind(`stash-glow-${i}`, K.sy, `stash${i}c`);
     }
+    for (const name of [...FINDS.map((n) => `find-${n}`), "sparkles"]) await bind(name, K.x, "findX");
     await bind("burst", K.x, "burstX");
     await bind("burst", K.y, "burstY");
     await bind("mouse", K.x, "mouseX");

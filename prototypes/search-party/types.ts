@@ -17,8 +17,9 @@ export type Economy = {
 
 export type Point = { x: number; y: number };
 
-// A cone of light: where it starts, which way it points in degrees (0 is right, negative is up), and its size.
-export type Beam = { x: number; y: number; angle: number; half: number; length: number };
+// A wedge of light: where it starts, which way it points in degrees (0 is right, negative is up),
+// how long it is, and how wide it is either side of its centre line at the start and at the end.
+export type Beam = { x: number; y: number; angle: number; length: number; near: number; far: number };
 
 // A glint is waiting to be found ("on"), bursting once found ("pop"), or gone until it respawns ("off").
 // `charge` runs from 0 to 1 while a light rests on it, and it is found when the charge is full.
@@ -32,9 +33,7 @@ export type World = {
     turn: number;
     // Where the torch settles when nothing is tapped.
     rest: number;
-    // Which way the searcher faces, and how far through turning round the drawing is (-1 to 1).
     facing: 1 | -1;
-    flip: number;
     target: Point | null;
     targetX: number;
     releaseAt: number;
@@ -47,13 +46,15 @@ export type World = {
   stashReadyAt: number[];
   stashCharge: number[];
   mouse: { active: boolean; x: number; dir: 1 | -1; nextAt: number };
+  // Where the latest find sits on the floor: beside wherever the searcher was when it turned up.
+  findX: number;
 };
 
 // Where every helper is and where its light points this instant.
 export type Poses = {
   intern: { x: number; beam: Beam };
   crawler: { x: number; beam: Beam };
-  detective: { beam: Beam };
+  detective: { x: number; beam: Beam };
   satellite: { x: number; beam: Beam };
   dog: { x: number; dir: 1 | -1 };
 };
